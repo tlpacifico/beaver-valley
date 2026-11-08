@@ -1,6 +1,6 @@
 # Castor — MVP roadmap
 
-Status: technical startup in progress. Standard Godot 4.7.2 and GDScript chosen; cube and provisional click-to-move movement implemented on the PC. Running on the POCO is pending, with postponement authorized because the phone is unavailable. Priority device and origin of the models remain open. There is no collecting/building yet. See [how to run](how-to-run.md).
+Status: milestone 1 complete. Godot 4.7.2 and GDScript retained; movement and test assets were validated on Windows and the POCO X7. The renamed Android build was reinstalled and checked on the POCO. Milestone 2 is next; priority device and origin of the final models remain open. Milestone 2 has a provisional bank, water and building marker; there is no collecting/building yet. See [how to run](how-to-run.md).
 
 ## Goal
 
@@ -38,8 +38,8 @@ Detail the first milestones and review the following ones in light of the tests.
 
 | Milestone | Playable result | Condition to advance | Status |
 |---|---|---|---|
-| [1. First steps](roadmaps/01-first-steps.md) | Simple scene opened outside the editor, on the PC and on Android. | Viable export and engine chosen based on experience. | In progress: scene, touch and suspend/resume validated on Windows and on the POCO X7; Blender branch and animated test model imported and seen on both. Task 4 of the startup plan (wrap-up) remains |
-| [2. First play](roadmaps/02-first-play.md) | Collect and place three branches to form a small dam. | Your daughter understands the interaction; priority device chosen. | Not started |
+| [1. First steps](roadmaps/01-first-steps.md) | Simple scene opened outside the editor, on the PC and on Android. | Viable export and engine chosen based on experience. | Complete: movement and test assets validated on Windows and POCO X7; startup reproduction and next increment recorded |
+| [2. First play](roadmaps/02-first-play.md) | Collect and place three branches to form a small dam. | Your daughter understands the interaction; priority device chosen. | In progress: provisional area prepared; branch interaction remains |
 | [3a. Playable dam](roadmaps/03a-playable-dam.md) | Complete stage with provisional shapes, obstacles, help, personalization and saving. | She can finish and resume the dam without getting stuck before the visual production. | Not started |
 | [3b. Dam with visual presentation](roadmaps/03b-visual-dam.md) | Animated beaver and stretch of the valley integrated into the validated experience. | Readable art, interactions preserved and performance observed on the device. | Not started |
 | [4. Chapter](roadmaps/04-chapter.md) | Dam, home, food and ending connected by the story. | Complete path, including returning to the valley and recovering progress. | Not started |
@@ -98,6 +98,6 @@ If the work grows, reduce variety of materials, decoration, size of the valley a
 | Script per event and origin of the provisional voice | Milestone 2, before the test with your daughter |
 | Other devices or public release | After the family MVP |
 
-Next action: follow the [startup plan](startup-plan.md), which puts milestone 1 into practice and prepares the 3D production. Updating these documents does not install tools or start the implementation.
+Next action: begin the first scoped increment in [milestone 2](roadmaps/02-first-play.md).
 
 External review: see [assessment and handling of the suggestions](roadmap-review.md). The adjustments preserve the three stages of the MVP and do not choose an engine, final style or art supplier.

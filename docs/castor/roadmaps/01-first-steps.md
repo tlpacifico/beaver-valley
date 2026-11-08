@@ -6,7 +6,7 @@
 
 Detailed execution: [startup plan](../startup-plan.md). It also includes importing a first simple 3D object and organizing the art sources.
 
-Current status: Godot chosen and set up, cube exported and movement/collisions tested on Windows. Phone unavailable, with continuing on the PC authorized. Asset import and running on Android remain pending; the milestone is not complete.
+Current status: complete. Movement and test assets were validated on Windows and the POCO X7; the startup reproduction and explicit engine decision are recorded in the [progress notes](../startup-progress.md). The APK exported after the English rename was reinstalled and checked on the phone.
 
 ## Learning while building
 
@@ -31,7 +31,7 @@ Current status: Godot chosen and set up, cube exported and movement/collisions t
 - [x] Make the beaver move with a provisional control, respecting the ground and the limits.
 - [x] Build and open a version on the PC.
 - [x] Build and install a version on Android. Check image, basic input and running outside the editor; this is not yet an assessment of the final controls.
-- [ ] Record engine and version, language, export steps, difficulties and the decision to continue or switch. Version, steps and difficulties recorded; the explicit decision to keep or switch is missing (task 4 of the startup plan).
+- [x] Record engine and version, language, export steps, difficulties and the decision to continue or switch. Continue with Godot 4.7.2 and typed GDScript.
 - [x] Create or adapt a simple branch in a 3D tool and check export, import and update in the engine, according to the [production inventory](../3d-production.md).
 - [x] Also import a test model with a skeleton, idle and walk, with a verified license; switch animations in the installed build according to the startup plan.
 

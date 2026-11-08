@@ -63,3 +63,24 @@ Plan: [startup-plan.md](startup-plan.md).
 - Mockup generators now write the English file names; regenerated SVGs are byte-identical to the previous ones.
 - `check` passed after the rename (cube, movement, assets with the new material names). Android APK re-exported; not reinstalled, because the phone was no longer connected, so the renamed marker has not been tried on the device.
 - `branch-export` failed once in the Godot `--import` step without a saved log, then passed twice in a row; not reproduced.
+
+## Task 4 — startup wrap-up (8 November 2026)
+
+- Started and closed the Godot editor twice in headless mode; this exercises startup, not a graphical editor session or a clean-cache rebuild. `./tools/castor.ps1 check` passed the cube, movement and static/animated asset checks.
+- Re-exported Windows and Android debug builds. The Windows executable completed `--capture-movement` with exit code 0. Android export completed and signed the APK, while reporting that no project icon is configured; the latest APK was not reinstalled or tested on the phone. Earlier device validation remains valid for the build actually tested, not proof of this new build.
+- Confirmed tracked project scenes, scripts, imported assets, Blender source/script, Fox source and license; `builds/` and Godot caches are ignored. Tool installations and export credentials remain local prerequisites documented in `how-to-run.md`. This was not a fresh checkout or a clean-machine reproduction.
+- Decision: retain Godot 4.7.2, typed GDScript and Compatibility for milestone 2, based on the PC and real-device experiments. Detailed implementation sequence and checks added to `roadmaps/02-first-play.md`.
+- Milestone 1 is complete based on the recorded real-device tests and startup reproduction. Open items: retest the renamed APK and debug marker on the POCO, investigate the darker Fox screenshot only if it recurs, choose the priority device after the child's play, and decide the origin and finish of final art. No child test or performance measurement was performed.
+
+## Renamed Android build retest (8 November 2026)
+
+- POCO X7 connected and authorized. Installed the current `builds/android/castor-debug.apk` with `adb install -r` and launched it successfully. The main scene was visible and a simulated ground tap moved the character and displayed a destination.
+- Created the renamed `user://open-asset-test` marker; the asset scene opened with the branch and Fox visible. A simulated tap changed the displayed animation from Survey to Walk and moved the Fox. Removed the marker and relaunched the normal scene.
+- This was an ADB-assisted check with screenshots, not a new hands-on touch or suspend/resume test; the earlier manual test is documented above. No child test or performance measurement was performed. Screenshots are in ignored `builds/android/`.
+
+## Milestone 2 — provisional area (8 November 2026)
+
+- Added simple water, bank and building-target markers to the existing movement scene. They are non-colliding visual placeholders: the water remains walkable and the target does not yet accept branches. The existing rock and navigation are unchanged.
+- `./tools/castor.ps1 check` passed cube, movement and asset tests; Windows export and graphical movement capture succeeded. Android export succeeded with the existing missing-icon warning.
+- Installed the new APK on the POCO X7; inspected the framed scene and confirmed movement after a simulated ADB tap. This does not replace a hands-on test or a play session with the child. Screenshots are in ignored `builds/android/`.
+- Next: add three selectable branches and carrying behavior; placement, water-state changes, voice, and the full child test remain open.

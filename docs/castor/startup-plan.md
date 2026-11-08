@@ -6,11 +6,11 @@
 
 **Architecture:** a game project in `game/`, art sources in `art/` and documentation in `docs/castor/`. Start with a small scene and placeholder volumes; choose the engine-specific details in task 1 before creating implementation files.
 
-**Chosen technology:** standard Godot 4.7.2, typed GDScript and Compatibility. Cube test exported to Windows and Android; running on the Android device is still pending. The modeling tool and export format will be recorded after a real import.
+**Chosen technology:** standard Godot 4.7.2, typed GDScript and Compatibility. Windows and Android device tests and the Blender/glTF import pipeline are recorded in [progress](startup-progress.md). The team will continue with this choice.
 
-**Execution in progress:** see [progress](startup-progress.md) and [commands/results](how-to-run.md). Files from the first increment: `game/project.godot`, `game/scenes/bootstrap.tscn`, `game/scripts/bootstrap.gd`, `game/export_presets.cfg` and `tools/castor.ps1`. The beaver's movement is the next increment, after validating the export; the remaining items of this plan are not complete.
+**Execution complete:** see [progress](startup-progress.md) and [commands/results](how-to-run.md). The next increment is scoped in [milestone 2](roadmaps/02-first-play.md).
 
-**Execution update:** the user authorized continuing on the PC with the phone unavailable. Added `game/scenes/movement.tscn`, `game/scripts/movement_world.gd`, `prototype_actor.gd`, `prototype_shapes.gd` and `game/tests/movement_test.gd`. Movement and collisions validated on Windows; Android and external import remain pending. The cube scene was preserved.
+**Execution update:** the cube scene was preserved; the movement and asset test scenes were subsequently validated on Windows and the POCO X7. The APK generated after the English rename was subsequently reinstalled and checked on the POCO.
 
 **Reference:** [roadmap](roadmap.md), [first steps](roadmaps/01-first-steps.md) and [3D production](3d-production.md).
 
@@ -92,13 +92,13 @@ The files above do not necessarily exist yet. Do not invent extensions, APIs or 
 
 **Files:** update `how-to-run.md`, `technical-decisions.md`, the status of milestone 1 and `roadmaps/02-first-play.md`.
 
-- [ ] Close and reopen the editor, run and generate the scene again from the project files.
-- [ ] Confirm that the required sources and assets are in the project and that caches/generated builds are not confused with sources.
-- [ ] Record what was validated, what remained pending and whether the candidate engine will be kept.
-- [ ] Adapt the tap/click, path, collection and placement tasks of milestone 2 to the chosen engine, with concrete files and checks.
+- [x] Close and reopen the editor, run and generate the scene again from the project files.
+- [x] Confirm that the required sources and assets are in the project and that caches/generated builds are not confused with sources.
+- [x] Record what was validated, what remained pending and whether the candidate engine will be kept.
+- [x] Adapt the tap/click, path, collection and placement tasks of milestone 2 to the chosen engine, with concrete files and checks.
 
 **Verifiable deliverable:** reproducible instructions and a scoped next increment. Mark milestone 1 complete only when its criteria are met; device pending items remain visible.
 
 ## Scope of this deliverable
 
-The result of this update is the plan ready to execute. Installations, project creation, models and device tests belong to the next execution. There are no estimated dates nor technical choices presented as already made.
+This plan records the completed startup work, not implementation of the complete chapter. See the progress notes for actual verification and remaining limitations.

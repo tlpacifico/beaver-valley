@@ -10,9 +10,20 @@ Visual production in this milestone: use the provisional volumes from the [envir
 
 Detect the object or point in the world under the touch/click; calculate a walkable path; represent simple states such as "free", "carrying" and "placed"; give a visual and sound response to the action.
 
+## Engine-specific implementation sequence
+
+Start with the existing `game/scenes/movement.tscn` and `game/scripts/movement_world.gd`; preserve the cube and asset test scenes. The exact decomposition can change as the prototype is built.
+
+1. **Area and movement:** adapt the movement scene and `prototype_shapes.gd` to a small bank, water and clear placement area. Reuse `prototype_actor.gd` and the XZ `AStarGrid2D` path while it fits the area. Check free and blocked destinations, reachable paths, retargeting and framing with mouse and touch.
+2. **Three branches:** add a branch scene and script under `game/scenes/` and `game/scripts/`, using the existing test branch as a provisional asset. Select a branch by click/tap, approach a reachable point and switch its state from free to carried only on arrival. Show the carried branch; repeated selections must not create copies. Check selecting another branch, inaccessible targets and changing destination.
+3. **Placement and water:** add a wide placement target and simple state in the world script or a dedicated script. Approach before placing; update the branch and one of three prepared water states once per placement. Support dropping or swapping and verify that three branches remain accounted for during repeated input.
+4. **Feedback and trial:** add destination, visual and provisional voice cues following `audio.md`, an adult restart, and a recognizable placeholder beaver. Extend `game/tests/movement_test.gd` or add focused integration tests for the interaction states. Run `./tools/castor.ps1 check`, export both builds, and try the complete sequence on PC and the real phone before inviting the child. Record observations and device choice here or in linked progress notes.
+
+These are proposed files and checks, not a new interaction system already implemented. Choose final camera behavior and art origin through the milestone's observations.
+
 ## Tasks
 
-- [ ] Prepare a small area with ground, bank, water and building target, using simple shapes.
+- [x] Prepare a small area with ground, bank, water and building target, using simple shapes. The water and target are visual placeholders and remain walkable; interaction is not implemented.
 - [ ] Try a diorama camera, fixed while the whole usable area fits on the screen. Before expanding the valley, test smooth following of the beaver with a fixed angle and no manual rotation. If the target leaves the frame, try an indicator at the edge; only keep it if it helps orientation. Test object selection with the camera moving.
 - [ ] Tap/click a point for the beaver to walk there. Show where it is going and prevent unreachable targets.
 - [ ] Tap/click a branch to approach and collect it; clearly show what it is carrying.

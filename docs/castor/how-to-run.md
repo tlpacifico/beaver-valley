@@ -28,7 +28,7 @@ The placeholder path uses 1-meter cells: the destination snaps to the center of 
 ./tools/castor.ps1 export-android
 ```
 
-The `check` command tests the cube and then the navigation: ground, boundaries, going around the rock, changing destination, rejecting invalid clicks, projecting a mouse event and speed. It ends with `CASTOR_MOVEMENT_OK ... rate=60`. It does not validate real touch or understanding by the child.
+The `check` command tests the cube, navigation (including the obstacle, redirection, projected mouse event and speed), and static and animated asset imports. Success ends with `CASTOR_ASSETS_OK`. It does not validate real touch or understanding by the child.
 
 For automatic graphical verification of the current executable, run `builds/windows/Castor.exe -- --capture-movement`; it sends a mouse event, checks that movement started, saves `movement.png` to Godot's user data folder and exits on its own. Do not pass that option for normal play. For the old cube test with the engine, use the explicit scene: `Godot_v4.7.2-stable_win64_console.exe --path game res://scenes/bootstrap.tscn -- --smoke-test`.
 
@@ -69,6 +69,10 @@ $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 
 While the marker exists, the game always opens in that scene. To go back to normal: `& $adb shell run-as org.thacio.castor.bootstrap rm files/open-asset-test` and reopen the app. Release builds ignore the marker.
 
+## Startup reproduction (8 November 2026)
+
+The Godot editor was started and closed twice with `--headless --path game --editor --quit`; `./tools/castor.ps1 check` passed, both debug exports completed, and the Windows executable exited successfully after `--capture-movement`. This checks editor startup without a graphical editor session; it is not a clean-cache or clean-machine test. Android export reported that no project icon is configured but completed and signed the APK. At that point the new APK had not been installed; the subsequent POCO retest is recorded in the progress notes.
+
 ## Results of this stage
 
 - Scene import by the editor without script errors.
@@ -76,14 +80,14 @@ While the marker exists, the game always opens in that scene. To go back to norm
 - Windows executable exported and run outside the editor: exit code 0 and the rotation/pause test passed; the renderer identified the RTX 3060.
 - Executable screenshot inspected: ground, cube, shadow, text and button visible. Copy in `builds/windows/bootstrap.png`.
 - ARM64 APK exported; signature verified by `apksigner` and metadata inspected with `aapt`.
-- ADB found no devices in this session's queries. Installation, touch and suspend/resume on the POCO remain pending.
+- At that earlier stage ADB found no devices; subsequent POCO validation is recorded below.
 
 ## Results of the movement increment
 
 - Integration tests passed at 30, 60 and 120 physics steps per second, including ground, boundaries, going around, redirection and projected mouse event.
 - Windows executable updated: graphical test with a mouse event ended with `CASTOR_GRAPHICS_OK mouse_movement_capture`, exit code 0. Screenshot inspected; copy in `builds/windows/movement.png`.
 - The cube test still passes. The main scene and the APK now open the movement.
-- The updated APK was exported, but still has not been installed or tested on the POCO.
+- The updated APK was exported; subsequent POCO validation is recorded below.
 
 ## 3D test assets — branch and animated model
 

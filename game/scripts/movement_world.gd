@@ -29,6 +29,16 @@ func _ready() -> void:
 	var ground := Shapes.solid_box(Vector3(13, 0.4, 11), Color("69967b"))
 	ground.position.y = -0.2
 	add_child(ground)
+	# Flat, non-colliding markers keep the existing walkable prototype intact.
+	var water := Shapes.box(Vector3(13, 0.03, 2.0), Color("579fbd"))
+	water.position = Vector3(0, 0.015, -4.5)
+	add_child(water)
+	var bank := Shapes.box(Vector3(13, 0.035, 0.35), Color("c6aa75"))
+	bank.position = Vector3(0, 0.018, -3.35)
+	add_child(bank)
+	var building_target := Shapes.box(Vector3(2.0, 0.04, 0.65), Color("e8c66a"))
+	building_target.position = Vector3(2.5, 0.025, -4.4)
+	add_child(building_target)
 	var rock := Shapes.solid_box(Vector3(0.8, 0.85, 4.8), Color("84949b"))
 	rock.position.y = 0.425
 	add_child(rock)

@@ -4,6 +4,8 @@
 
 Initial inventory collected on the PC and from the image provided by the user. Documentation comparison complete: [engine comparison](engine-comparison.md). The user confirmed Godot/GDScript. Standard Godot 4.7.2-stable prepared with typed GDScript and Compatibility; Windows executable tested; APK installed and validated on the POCO X7 on 8/11/2026 (tap via ADB and by hand, suspend/resume). See [instructions and results](how-to-run.md).
 
+**Decision after milestone 1:** keep standard Godot 4.7.2, typed GDScript and Compatibility for milestone 2. Exports, movement and static/animated imports have been exercised on both target devices; revisit the choice if later tests expose a concrete limitation. The renamed APK was subsequently reinstalled and checked on the POCO; see the progress notes for the scope.
+
 ## Development PC — observed locally
 
 | Component | Result |
