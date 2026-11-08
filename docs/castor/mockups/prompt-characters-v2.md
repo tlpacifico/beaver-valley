@@ -1,0 +1,13 @@
+# Prompt — characters v2
+
+Tool: built-in `image_gen`. New image generation, without reference images; opaque background. Result: `characters-concept-v2.png`. The SVGs were drawn separately in code and are not extractions from this image.
+
+## Prompt sent
+
+Use case: stylized-concept. Create an exquisite cohesive character design sheet for an original cozy 3D children's game called O Castor, about woodland animals preparing a small autumn river valley for winter. Landscape sheet, warm ivory paper background, exceptionally polished stylized 3D clay-like low-poly-friendly character renders, soft studio lighting, rounded tactile volumes, sophisticated restrained chestnut/ochre/cream palette. Three clearly separated equal columns: BEAVER, OWL, OTTER. Each column contains one large expressive full body three-quarter hero and one small side-profile view of the SAME character below. Beaver: squat pear-shaped substantial body, warm chestnut fur, broad flat dark paddle tail fully visible with very subtle diagonal grooves, two neat visible incisors, small round ears, cream muzzle, expressive dark eyes, short paws carrying a single twig. Owl: compact upright rounded teardrop, warm walnut and tawny feathers in large simple layers, very distinct cream heart-shaped facial disc, two large dark kind eyes, small ochre beak, folded wings, tiny talons, no accessories. Otter: clearly longer slender flexible body, cocoa brown fur, cream muzzle and throat, tiny rounded ears, thick tapered curved tail clearly visible, small webbed feet, joyful curious expression; must look unmistakably different from the squat flat-tailed beaver. No clothes, no hats, no weapons, no human hands. Friendly and charming for ages 6 to 10, not infantile, visually readable at small size. Header exact text 'O CASTOR'; column headings exact 'CASTOR', 'CORUJA', 'LONTRA'; small footer exact 'Estudo visual de personagens'. Clean elegant art direction, generous whitespace. These are visual concept renders, not technical mesh screenshots. No extra animals, no environment, no watermarks.
+
+In-image text (kept in Portuguese on purpose): header 'O CASTOR' ("The Beaver"); column headings 'CASTOR' ("Beaver"), 'CORUJA' ("Owl"), 'LONTRA' ("Otter"); footer 'Estudo visual de personagens' ("Visual character study").
+
+## Notes on the result
+
+The three animals and the texts are present and legible. The image has more fur and feather detail than intended for a simple game mesh; simplify those details during modeling. The otter's tail and pose change between views, so this sheet does not replace consistent orthographic views.

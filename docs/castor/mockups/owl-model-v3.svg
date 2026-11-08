@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title"><title id="title">Coruja — estudo vetorial v3</title><defs>
+  <linearGradient id="pelagem" x2=".8" y2="1"><stop stop-color="#FFB13B"/><stop offset="1" stop-color="#EB762F"/></linearGradient>
+  <linearGradient id="penas" x2=".8" y2="1"><stop stop-color="#BA9AF2"/><stop offset="1" stop-color="#8262C5"/></linearGradient>
+  <linearGradient id="lontra-pelo" x2=".6" y2="1"><stop stop-color="#67D4CD"/><stop offset="1" stop-color="#269DAB"/></linearGradient>
+</defs><g transform="translate(160 105) scale(1.25)"><g stroke="#554378" stroke-width="2.5" stroke-linejoin="round">
+  <ellipse cx="0" cy="91" rx="46" ry="8" fill="#352E25" opacity=".12" stroke="none"/>
+  <path d="M-17 76L-18 89M-18 85L-26 90M-18 85L-10 90M17 76L18 89M18 85L10 90M18 85L26 90" fill="none" stroke="#E9A039" stroke-width="5" stroke-linecap="round"/>
+  <path d="M-43-11Q-45-50 0-50Q45-50 43-11L45 39Q45 80 0 82Q-45 80-45 39Z" fill="url(#penas)"/>
+  <path d="M-27 18Q0 0 27 18L29 53Q23 76 0 77Q-23 76-29 53Z" fill="#FFE48A" stroke="none"/>
+  <path d="M-38 2Q-62 33-37 68Q-21 57-26 29M38 2Q62 33 37 68Q21 57 26 29" fill="#9371CF"/>
+  <path d="M-33 32L-40 44M-32 44L-37 55M33 32L40 44M32 44L37 55" fill="none" stroke="#D8BDF8"/>
+  <path d="M0-27C-33-55-52-11-27 10L0 30L27 10C52-11 33-55 0-27Z" fill="#FFF2D1" stroke="none"/>
+  <ellipse cx="-18" cy="-8" rx="13" ry="16" fill="#FFD681" stroke="none"/><ellipse cx="18" cy="-8" rx="13" ry="16" fill="#FFD681" stroke="none"/>
+  <ellipse cx="-18" cy="-8" rx="8" ry="11" fill="#302E28" stroke="none"/><ellipse cx="18" cy="-8" rx="8" ry="11" fill="#302E28" stroke="none"/>
+  <circle cx="-15" cy="-12" r="3" fill="#FFFBEA" stroke="none"/><circle cx="21" cy="-12" r="3" fill="#FFFBEA" stroke="none"/>
+  <path d="M-7 7Q0 1 7 7L0 20Z" fill="#FFB93F" stroke-width="1.5"/>
+  <path d="M-14 37L-10 43L-6 37M7 37L11 43L15 37M-5 52L0 58L5 52M-15 61L-12 66M14 61L11 66" fill="none" stroke="#D29548" stroke-linecap="round"/>
+</g></g></svg>

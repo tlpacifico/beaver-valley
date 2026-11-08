@@ -1,0 +1,10 @@
+.superpowers/
+.codex-remote-attachments/
+builds/
+game/.godot/
+game/.godot-test/
+*.tmp
+*.keystore
+*.jks
+*.blend1
+docs/cantar/

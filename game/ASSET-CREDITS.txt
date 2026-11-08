@@ -1,0 +1,15 @@
+Castor — credits for third-party assets included in this test build
+
+Animated test model "Fox" (technical asset; not a Castor character)
+- Source: Khronos glTF Sample Assets, Models/Fox
+  https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox
+- Model: PixelMannen, 2014 — CC0 1.0 Universal
+  https://creativecommons.org/publicdomain/zero/1.0/legalcode
+- Rigging and animation: tomkranis, 2014 — CC BY 4.0
+  https://creativecommons.org/licenses/by/4.0/legalcode
+- Conversion to glTF: @AsoboStudio and @scurest, 2017 — CC BY 4.0
+  https://creativecommons.org/licenses/by/4.0/legalcode
+- Changes: scale reduced (0.005) and Survey/Walk animations set to loop in the
+  engine; the .glb file itself was not modified.
+
+Test branch: created in this project (art/props/test_branch.blend).

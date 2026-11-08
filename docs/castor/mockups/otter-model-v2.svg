@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title"><title id="title">Lontra — estudo vetorial v2</title><defs>
+  <linearGradient id="pelagem" x2=".8" y2="1"><stop stop-color="#BE8050"/><stop offset="1" stop-color="#75432F"/></linearGradient>
+  <linearGradient id="penas" x2=".8" y2="1"><stop stop-color="#A18164"/><stop offset="1" stop-color="#59453C"/></linearGradient>
+  <linearGradient id="lontra-pelo" x2=".6" y2="1"><stop stop-color="#94674E"/><stop offset="1" stop-color="#53392F"/></linearGradient>
+</defs><g transform="translate(160 105) scale(1.25)"><g stroke="#45352D" stroke-width="2.5" stroke-linejoin="round">
+  <ellipse cx="5" cy="92" rx="83" ry="9" fill="#352E25" opacity=".12" stroke="none"/>
+  <path d="M25 60C63 62 59 89 103 66C86 99 42 103 9 79Z" fill="#624535"/>
+  <path d="M-26 10C-37 37-40 65-23 82Q-5 96 21 80C39 67 17 31 21 5Z" fill="url(#lontra-pelo)"/>
+  <path d="M-18 8Q-27 48-13 69Q0 81 13 65L10 8Z" fill="#DCC099" stroke="none"/>
+  <path d="M-23 77Q-43 82-34 91L-10 91Q-5 86-14 80M13 78Q2 88 13 92L38 92Q45 85 25 80" fill="#624535"/>
+  <circle cx="-29" cy="-29" r="9" fill="#84583F"/><circle cx="24" cy="-31" r="9" fill="#84583F"/>
+  <circle cx="-29" cy="-29" r="4" fill="#C79D7A" stroke="none"/><circle cx="24" cy="-31" r="4" fill="#C79D7A" stroke="none"/>
+  <path d="M-36-16Q-35-39-7-40Q23-43 32-20Q44 5 16 16L-12 17Q-38 12-36-16Z" fill="url(#lontra-pelo)"/>
+  <ellipse cx="-18" cy="-14" rx="4.5" ry="6" fill="#292723" stroke="none"/><ellipse cx="17" cy="-16" rx="4.5" ry="6" fill="#292723" stroke="none"/>
+  <circle cx="-16.5" cy="-16" r="1.5" fill="#FFF8EA" stroke="none"/><circle cx="18.5" cy="-18" r="1.5" fill="#FFF8EA" stroke="none"/>
+  <path d="M-25 0Q-19-12-3-4Q17-16 27-4Q38 12 1 18Q-26 17-25 0Z" fill="#E9CEAA" stroke="none"/>
+  <path d="M-10-5Q-1-10 9-6Q10 1 0 4Q-9 3-10-5Z" fill="#352D29" stroke="none"/>
+  <path d="M0 4L1 9M-9 8Q0 16 12 6M-21 0L-43-4M-22 6L-44 8M22-2L41-8M24 4L46 3" fill="none" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M-28 29Q-49 44-32 51L-15 42M18 27Q43 32 34 45L18 39" fill="#896047"/>
+</g></g></svg>

@@ -1,0 +1,19 @@
+; Castor: first run and export test.
+config_version=5
+
+[application]
+config/name="Castor — Primeiro teste"
+run/main_scene="res://scenes/movement.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[display]
+window/size/viewport_width=960
+window/size/viewport_height=600
+window/stretch/mode="canvas_items"
+window/handheld/orientation=0
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.075, 0.12, 0.15, 1)

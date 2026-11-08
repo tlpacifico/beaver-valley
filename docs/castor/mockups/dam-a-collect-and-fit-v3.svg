@@ -1,0 +1,48 @@
+<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><title>represa-a-recolher-encaixar — personagens v3</title><defs>
+  <linearGradient id="pelagem" x2=".8" y2="1"><stop stop-color="#FFB13B"/><stop offset="1" stop-color="#EB762F"/></linearGradient>
+  <linearGradient id="penas" x2=".8" y2="1"><stop stop-color="#BA9AF2"/><stop offset="1" stop-color="#8262C5"/></linearGradient>
+  <linearGradient id="lontra-pelo" x2=".6" y2="1"><stop stop-color="#67D4CD"/><stop offset="1" stop-color="#269DAB"/></linearGradient>
+</defs>
+  <rect width="320" height="200" fill="#A7CF77"/>
+  <rect width="320" height="38" fill="#bfe6ff"/>
+  <path d="M140 38 C150 80 122 130 140 200 L212 200 C192 130 222 80 202 38 Z" fill="#65CADD"/>
+  <rect x="34" y="52" width="8" height="26" fill="#7a4e24"/><circle cx="38" cy="48" r="18" fill="#3f9b3a"/>
+  <rect x="262" y="60" width="8" height="26" fill="#7a4e24"/><circle cx="266" cy="56" r="18" fill="#3f9b3a"/>
+  <rect x="88" y="44" width="7" height="22" fill="#7a4e24"/><circle cx="91" cy="40" r="15" fill="#4caf45"/>
+  <circle cx="58" cy="152" r="16" fill="#fff59d" opacity=".7"/>
+  <rect x="44" y="149" width="28" height="6" rx="3" fill="#8b5a2b" transform="rotate(-15 58 152)"/>
+  <circle cx="270" cy="150" r="16" fill="#fff59d" opacity=".7"/>
+  <rect x="256" y="147" width="28" height="6" rx="3" fill="#8b5a2b" transform="rotate(20 270 150)"/>
+  <rect x="130" y="112" width="26" height="8" rx="4" fill="#8b5a2b"/>
+  <rect x="156" y="112" width="26" height="8" rx="4" fill="#8b5a2b"/>
+  <rect x="130" y="104" width="26" height="8" rx="4" fill="#9c6b3a"/>
+  <rect x="182" y="112" width="30" height="8" rx="4" fill="none" stroke="#fff176" stroke-width="2" stroke-dasharray="4 3"/>
+  <rect x="156" y="104" width="26" height="8" rx="4" fill="none" stroke="#fff176" stroke-width="2" stroke-dasharray="4 3"/>
+  <rect x="182" y="104" width="30" height="8" rx="4" fill="none" stroke="#fff176" stroke-width="2" stroke-dasharray="4 3"/>
+  <path d="M70 146 C100 120 130 100 165 104" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="5 4"/>
+  <circle cx="120" cy="116" r="7" fill="#ffccbc" stroke="#e64a19" stroke-width="1.5"/>
+  <g transform="translate(97 141) scale(0.29)"><g stroke="#843C32" stroke-width="2.5" stroke-linejoin="round">
+  <ellipse cx="0" cy="91" rx="67" ry="10" fill="#352E25" opacity=".12" stroke="none"/>
+  <path d="M-29 60 C-62 33-104 45-88 71 C-79 88-52 91-27 79Z" fill="#A85439"/>
+  <path d="M-85 58L-54 80M-73 50L-40 77M-88 69L-63 50M-75 80L-49 57" fill="none" stroke="#ECA15B" stroke-width="2"/>
+  <ellipse cx="0" cy="43" rx="43" ry="47" fill="url(#pelagem)"/>
+  <ellipse cx="8" cy="48" rx="26" ry="32" fill="#FFE497" stroke="none"/>
+  <path d="M-27 78Q-48 80-39 91L-9 91Q-2 83-13 79M19 79Q9 88 18 92L46 92Q54 84 35 79" fill="#A85439"/>
+  <circle cx="-23" cy="-35" r="12" fill="#EC893A"/><circle cx="30" cy="-35" r="11" fill="#EC893A"/>
+  <circle cx="-23" cy="-35" r="6" fill="#FFB0A0" stroke="none"/><circle cx="30" cy="-35" r="5" fill="#FFB0A0" stroke="none"/>
+  <path d="M-36-17Q-33-43 2-42Q36-42 44-15Q52 17 18 23L-17 19Q-41 14-36-17Z" fill="url(#pelagem)"/>
+  <path d="M-10-36L-5-43L3-38L11-44L17-36" fill="#FFC24B" stroke="none"/>
+  <ellipse cx="-24" cy="0" rx="5" ry="3" fill="#F88780" stroke="none"/><ellipse cx="31" cy="0" rx="5" ry="3" fill="#F88780" stroke="none"/><ellipse cx="-14" cy="-13" rx="6" ry="8" fill="#292723" stroke="none"/><ellipse cx="24" cy="-14" rx="6" ry="8" fill="#292723" stroke="none"/>
+  <circle cx="-12" cy="-15" r="1.7" fill="#FFF8EA" stroke="none"/><circle cx="26" cy="-16" r="1.7" fill="#FFF8EA" stroke="none"/>
+  <path d="M-22 2Q-16-12 3-4Q24-15 34 0Q37 15 7 17Q-22 17-22 2" fill="#FFF0BA" stroke="none"/>
+  <path d="M-3-5Q6-11 15-5Q13 3 6 4Q0 3-3-5" fill="#3D302B" stroke="none"/>
+  <rect x="-2" y="12" width="8" height="13" rx="2" fill="#FFF5D7" stroke-width="1"/><rect x="6" y="12" width="8" height="13" rx="2" fill="#FFF5D7" stroke-width="1"/>
+  <path d="M-9 9Q6 17 22 7" fill="none" stroke-width="1.8"/>
+  <path d="M-37 31Q-49 45-23 54Q-13 50-23 43M35 29Q52 40 31 54Q20 51 31 41" fill="#F79632"/>
+</g></g>
+  <rect x="8" y="8" width="66" height="22" rx="11" fill="#fff" opacity=".9"/>
+  <rect x="16" y="16" width="20" height="6" rx="3" fill="#8b5a2b"/>
+  <text x="42" y="23" font-size="11" font-family="sans-serif" fill="#333">3 / 8</text>
+  <rect x="176" y="6" width="136" height="26" rx="13" fill="#fff" opacity=".95"/>
+  <text x="186" y="23" font-size="10" font-family="sans-serif" fill="#333">"Falta pouco, castorzinho!"</text>
+</svg>

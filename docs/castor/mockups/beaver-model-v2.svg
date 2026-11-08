@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title"><title id="title">Castor — estudo vetorial v2</title><defs>
+  <linearGradient id="pelagem" x2=".8" y2="1"><stop stop-color="#BE8050"/><stop offset="1" stop-color="#75432F"/></linearGradient>
+  <linearGradient id="penas" x2=".8" y2="1"><stop stop-color="#A18164"/><stop offset="1" stop-color="#59453C"/></linearGradient>
+  <linearGradient id="lontra-pelo" x2=".6" y2="1"><stop stop-color="#94674E"/><stop offset="1" stop-color="#53392F"/></linearGradient>
+</defs><g transform="translate(160 105) scale(1.25)"><g stroke="#51372D" stroke-width="2.5" stroke-linejoin="round">
+  <ellipse cx="0" cy="91" rx="67" ry="10" fill="#352E25" opacity=".12" stroke="none"/>
+  <path d="M-29 60 C-62 33-104 45-88 71 C-79 88-52 91-27 79Z" fill="#684738"/>
+  <path d="M-85 58L-54 80M-73 50L-40 77M-88 69L-63 50M-75 80L-49 57" fill="none" stroke="#9D7351" stroke-width="2"/>
+  <ellipse cx="0" cy="43" rx="43" ry="47" fill="url(#pelagem)"/>
+  <ellipse cx="8" cy="48" rx="26" ry="32" fill="#C59465" stroke="none"/>
+  <path d="M-27 78Q-48 80-39 91L-9 91Q-2 83-13 79M19 79Q9 88 18 92L46 92Q54 84 35 79" fill="#684738"/>
+  <circle cx="-23" cy="-35" r="12" fill="#97623F"/><circle cx="30" cy="-35" r="11" fill="#97623F"/>
+  <circle cx="-23" cy="-35" r="6" fill="#D4A17A" stroke="none"/><circle cx="30" cy="-35" r="5" fill="#D4A17A" stroke="none"/>
+  <path d="M-36-17Q-33-43 2-42Q36-42 44-15Q52 17 18 23L-17 19Q-41 14-36-17Z" fill="url(#pelagem)"/>
+  <path d="M-10-36L-5-43L3-38L11-44L17-36" fill="#B67D50" stroke="none"/>
+  <ellipse cx="-14" cy="-13" rx="5" ry="7" fill="#292723" stroke="none"/><ellipse cx="24" cy="-14" rx="5" ry="7" fill="#292723" stroke="none"/>
+  <circle cx="-12" cy="-15" r="1.7" fill="#FFF8EA" stroke="none"/><circle cx="26" cy="-16" r="1.7" fill="#FFF8EA" stroke="none"/>
+  <path d="M-22 2Q-16-12 3-4Q24-15 34 0Q37 15 7 17Q-22 17-22 2" fill="#E7C697" stroke="none"/>
+  <path d="M-3-5Q6-11 15-5Q13 3 6 4Q0 3-3-5" fill="#3D302B" stroke="none"/>
+  <rect x="-2" y="12" width="8" height="13" rx="2" fill="#FFF5D7" stroke-width="1"/><rect x="6" y="12" width="8" height="13" rx="2" fill="#FFF5D7" stroke-width="1"/>
+  <path d="M-9 9Q6 17 22 7" fill="none" stroke-width="1.8"/>
+  <path d="M-37 31Q-49 45-23 54Q-13 50-23 43M35 29Q52 40 31 54Q20 51 31 41" fill="#AA7049"/>
+</g></g></svg>

@@ -1,0 +1,42 @@
+<svg viewBox="0 0 600 350" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="fundo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfeeff"/><stop offset="1" stop-color="#eaf7ff"/></linearGradient></defs>
+  <rect width="600" height="350" fill="url(#fundo)"/>
+  <polygon points="40,170 300,300 300,334 40,204" fill="#6d4c2f"/>
+  <polygon points="560,170 300,300 300,334 560,204" fill="#5a3d24"/>
+  <polygon points="300,40 560,170 300,300 40,170" fill="#8fd16a"/>
+  <ellipse cx="420" cy="105" rx="70" ry="28" fill="#7cc35a"/>
+  <polygon points="417,98 456,118 183,241 144,222" fill="#5bb3e8"/>
+  <polygon points="144,222 183,241 183,258 144,239" fill="#3d8fc4"/>
+  <ellipse cx="372" cy="138" rx="66" ry="30" fill="#5bb3e8" opacity=".35" stroke="#2b7bb9" stroke-dasharray="6 4"/>
+  <line x1="279" y1="160" x2="322" y2="182" stroke="#8b5a2b" stroke-width="9" stroke-linecap="round" stroke-dasharray="10 5"/>
+  <path d="M355 140 q17 -26 34 0 z" fill="none" stroke="#6d4c2f" stroke-width="2" stroke-dasharray="4 3"/>
+  <ellipse cx="150" cy="158" rx="14" ry="5" fill="#000" opacity=".15"/><rect x="147" y="132" width="6" height="26" fill="#efe7da"/><rect x="147" y="140" width="6" height="2" fill="#333"/><circle cx="150" cy="126" r="16" fill="#ffd54f"/>
+  <ellipse cx="190" cy="128" rx="14" ry="5" fill="#000" opacity=".15"/><rect x="187" y="102" width="6" height="26" fill="#efe7da"/><rect x="187" y="112" width="6" height="2" fill="#333"/><circle cx="190" cy="96" r="16" fill="#ffb74d"/>
+  <ellipse cx="226" cy="108" rx="14" ry="5" fill="#000" opacity=".15"/><rect x="223" y="82" width="6" height="26" fill="#efe7da"/><circle cx="226" cy="76" r="16" fill="#ffd54f"/>
+  <ellipse cx="118" cy="182" rx="14" ry="5" fill="#000" opacity=".15"/><rect x="115" y="156" width="6" height="26" fill="#efe7da"/><circle cx="118" cy="150" r="16" fill="#ff8a65"/>
+  <rect x="160" y="168" width="26" height="5" rx="2.5" fill="#8b5a2b" transform="rotate(25 173 170)"/>
+  <circle cx="173" cy="170" r="14" fill="#fff59d" opacity=".5"/>
+  <ellipse cx="420" cy="222" rx="13" ry="8" fill="#9e9e9e"/><ellipse cx="440" cy="212" rx="9" ry="6" fill="#bdbdbd"/><ellipse cx="404" cy="232" rx="8" ry="5" fill="#8a8a8a"/>
+  <ellipse cx="236" cy="236" rx="22" ry="8" fill="#6d4c2f"/><ellipse cx="256" cy="246" rx="12" ry="5" fill="#5a3d24"/>
+  <g transform="translate(262,198) scale(.75)">
+    <ellipse cx="0" cy="16" rx="20" ry="5" fill="#000" opacity=".18"/>
+    <ellipse cx="-20" cy="8" rx="12" ry="6" fill="#5a3a1a"/>
+    <ellipse cx="0" cy="0" rx="18" ry="14" fill="#8b5a2b"/>
+    <circle cx="10" cy="-16" r="10" fill="#9c6b3a"/><circle cx="5" cy="-24" r="3.5" fill="#7a4e24"/><circle cx="13" cy="-18" r="2" fill="#222"/><rect x="14" y="-11" width="5" height="5" fill="#fff"/>
+  </g>
+  <g transform="translate(470,170) scale(.6)">
+    <ellipse cx="0" cy="0" rx="22" ry="9" fill="#5d4037"/><circle cx="20" cy="-8" r="9" fill="#6d4c41"/><circle cx="23" cy="-10" r="2" fill="#222"/><path d="M-22 0 q-14 4 -20 -2" stroke="#5d4037" stroke-width="5" fill="none"/>
+  </g>
+  <g transform="translate(118,128)">
+    <ellipse cx="0" cy="0" rx="6" ry="8" fill="#8d6e63"/><circle cx="-2" cy="-3" r="2" fill="#fff"/><circle cx="2" cy="-3" r="2" fill="#fff"/>
+  </g>
+  <g font-family="sans-serif" font-size="11">
+    <rect x="70" y="58" width="128" height="20" rx="10" fill="#fff"/><text x="80" y="72" fill="#333">Floresta: galhos</text>
+    <rect x="440" y="236" width="118" height="20" rx="10" fill="#fff"/><text x="450" y="250" fill="#333">Margem: pedras</text>
+    <rect x="190" y="262" width="96" height="20" rx="10" fill="#fff"/><text x="200" y="276" fill="#333">Lodo: lama</text>
+    <rect x="250" y="122" width="96" height="20" rx="10" fill="#fff8e1" stroke="#8b5a2b"/><text x="260" y="136" fill="#6d4c2f">Aqui: represa</text>
+    <rect x="400" y="60" width="140" height="20" rx="10" fill="#fff"/><text x="410" y="74" fill="#333">Depois: lago e toca</text>
+    <rect x="486" y="150" width="104" height="20" rx="10" fill="#fff"/><text x="496" y="164" fill="#333">Lontra (dicas)</text>
+    <rect x="40" y="106" width="64" height="20" rx="10" fill="#fff"/><text x="50" y="120" fill="#333">Coruja</text>
+  </g>
+</svg>

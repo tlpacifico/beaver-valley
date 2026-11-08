@@ -1,0 +1,101 @@
+# Castor — inventory and preparation of 3D production
+
+[Overall roadmap](roadmap.md) · [Characters](roadmaps/3d-characters.md) · [Environment](roadmaps/3d-environment.md)
+
+Initial state: 2D concepts and mockups exist. No ready-made 3D models, skeletons or animations were identified. The rows below are planned deliverables, not assets already produced, except for the two milestone 1 technical test assets described further below.
+
+## Minimum inventory
+
+| Asset | Required deliverable | First use | Status |
+|---|---|---|---|
+| Beaver | Model, materials, skeleton and essential actions | Milestone 3b; placeholder in 1–3a | To be produced |
+| Animated test model | Asset with skeleton, idle and walk; license verified | Milestone 1, with no obligation to stay in the game | Imported and validated on Windows and on the POCO X7 (Fox, see below) |
+| Test branch | Static object created in Blender to prove export/import/change | Milestone 1, technical asset | Imported, changed and reimported; seen on Windows and on the POCO X7 |
+| Owl | Model and pointing/giving-a-hint action | Milestone 3b; placeholder marker in 3a | To be produced |
+| Otter | Recognizable representation in a celebration pose or with code-driven movement; own rig/animations optional | Milestone 3b; reuse in 4 without requiring demonstrations | To be produced |
+| Family at the end | Simple composition, reusing models where appropriate | Milestone 4 | To be defined without creating new protagonists |
+| Terrain and banks | Valley, boundaries and walkable surfaces | Placeholder in 1–3a; visual in 3b | To be produced |
+| Water | River, reduced current, puddle and lake | Placeholder in 2–3a; finish in 3b | To be produced |
+| Vegetation and scenery stones | Small reusable set, not implying collection | Milestone 3b | To be produced |
+| Branches | Normal, thick, gnawed and spoiled, recognizable by shape | Normal placeholder in 2; obstacles in 3a; finish in 3b | To be produced |
+| Building stones | Candidate collectible material, distinct from scenery stones; function to be decided | Decide before 3a; if included, placeholder in 3a and visual in 3b | Inclusion in MVP pending |
+| Building mud | Candidate material; define a function without depending on the leak challenge, which is postponed | Decide before 3a; if included, placeholder in 3a and visual in 3b | Inclusion in MVP pending |
+| Dam | Parts and progressive states, chosen finish | Placeholder in 2–3a; visual in 3b | To be produced |
+| Lodge | Parts and construction states | Milestone 4 | To be produced |
+| Food store | Branches and storage states in the water | Milestone 4 | To be produced |
+| Winter | Simple scenery changes and snow effect | Milestone 4 | To be produced |
+| Voice lines | Script per event, placeholder voice and final recordings | Milestone 2 onward | To be produced |
+| Sound effects | Responses for collecting, placing, gnawing and completion | Milestone 2 onward | To be produced |
+| Ambient sound | River and nature without masking the voice | Milestone 3b | To be produced |
+
+The [audio plan](audio.md) details the script, voice origin and events. The inventory includes audio to keep asset provenance in a single place, even though this page started with 3D production.
+
+Stones and mud only move on to visual production if the distinct function proposed before 3a is understood by the child in the 3a test without additional explanation from the adult. Mud as a finish is a hypothesis to test, not an inclusion already decided.
+
+Before producing each asset, record: origin (own/adapted/acquired), author, source link, license and attribution, editable file, exported file, scale, materials, animations, milestone and validation status in the engine. For own work, state authorship instead of inventing an external license.
+
+## Proposed file organization
+
+These folders will be created when there is content; they do not represent existing files.
+
+| Path from the root | Responsibility |
+|---|---|
+| `art/characters/` | Editable sources of the characters and animations. |
+| `art/environment/` | Editable sources of the terrain, vegetation, water and stones. |
+| `art/props/` | Sources of the collectible materials and constructions. |
+| `audio/source/` | Voice, effects and ambient sources; origin and permissions recorded in the audio inventory. |
+| `game/` | Project of the chosen engine, including exported/imported assets. |
+| `builds/` | Builds generated for testing, outside version control. |
+
+Define the export format, units, axes, origin position and animation conventions in the first import test. Record the decision here before multiplying models. Keep the editable source separate from the file intended for the engine; do not edit only the exported one.
+
+## Technical test assets (milestone 1)
+
+These two assets prove the Blender → glTF → Godot pipeline. They **are not** Castor's art direction nor characters in the game; they can be removed when there are final assets.
+
+| Field | Test branch | Animated test model «Fox» |
+|---|---|---|
+| Editable source | `art/props/test_branch.blend` + script `art/props/test_branch.py` | `art/characters/test-fox/Fox.glb` (original, unchanged) with `README.md`, `LICENSE.md` and `metadata.json` from the source |
+| File used by the game | `game/assets/props/test_branch.glb` (generated; do not edit) | `game/assets/characters/test_fox/Fox.glb` (copy) and `Fox_0.png` extracted by the Godot importer |
+| Origin | Created in this project, 8/11/2026 | [Khronos glTF Sample Assets — Models/Fox](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox), commit `4995a63` (26/09/2026); SHA-256 of the `.glb` `d97044e7…94771f7` |
+| Author and license | Project authorship; no external license | Model: PixelMannen, CC0 1.0. Rigging and animation: tomkranis, CC BY 4.0. glTF conversion: @AsoboStudio and @scurest, CC BY 4.0 |
+| Attribution | — | Required (CC BY 4.0): text in `game/ASSET-CREDITS.txt`, included in the executable, and a credits line visible in the test scene |
+| Tool | Blender 5.2.3 LTS, bundled glTF exporter | Not edited; direct import into Godot 4.7.2 |
+| Scale | 1 unit = 1 m; 1.2 m long, ~0.12 m high | Original in ~centimeters (≈155 long); scale `0.005` in the engine → ≈0.77 m long, ≈0.4 m high |
+| Orientation and origin | Length along +X; light top at the +X tip; origin at the center, base on the ground; rotation/scale applied | Faces +Z (confirmed in the walking screenshot); origin at ground level, near the center of the body |
+| Materials | `Bark`, `CutTip` and, after the test change, `Leaf`; base colors without textures | One `fox_material` material with the `Fox_0.png` texture |
+| Skeleton and animations | — | `Skeleton3D` with 24 bones; `Survey` used as idle, `Walk` as walk (loop enabled in the engine); `Run` not used |
+| Validation | Test `tests/asset_import_test.gd`, visual inspection in the engine, in the Windows executable and on the POCO X7 | Same test and screenshots; idle when stopped and walk while moving; confirmed by hand on the POCO X7 |
+
+### Proven export conventions
+
+- Format: binary glTF (`.glb`), exported with `+Y Up` and "Apply Modifiers"; Godot recommends glTF 2.0.
+- Units: 1 Blender unit = 1 meter. Apply rotation and scale in Blender (Ctrl+A) before exporting; the test fails if the imported node has a transform.
+- Axes: Z up in Blender becomes Y up in Godot; Blender's +Y becomes −Z in Godot. Length of elongated props along +X.
+- Origin: at the point that should rest on the ground (center of the base). The game positions the asset by its origin.
+- Colors: Blender's "Base Color" values are linear; in Godot they appear converted (for example 0.13 linear ≈ 0.40 sRGB). Choose colors by looking at the result in the engine, not by the number.
+- Names: the object and the materials keep their Blender names in Godot (`Branch`, `Bark`…). Avoid an object name identical to the file name.
+- Source and export kept separate: edit only the `.blend` in `art/`; the `.glb` in `game/assets/` is regenerated with `./tools/castor.ps1 branch-export`.
+- Third-party animations: enable looping in the engine when the file does not include it; do not edit the original `.glb`.
+
+### What to learn in Blender to repeat it alone
+
+The branch was generated by script to be reproducible, but the same result can be done by hand. Minimum concepts, in this order:
+
+1. Navigate the 3D view (rotate, zoom, front/side views via the numeric keypad) and select objects.
+2. Add primitives (cylinder, sphere), move/rotate/scale with G/R/S and exact values in the side panel (N).
+3. Basic edit mode: extrude and move vertices to refine a simple shape.
+4. Join objects (Ctrl+J), apply transforms (Ctrl+A) and put the origin in the right place (Object → Set Origin).
+5. Create materials with a base color and assign them to parts of an object.
+6. Export glTF (`File → Export → glTF 2.0`, `.glb` format) to `game/assets/...` and confirm in Godot.
+
+Skeleton (rig), weights and animation are left for the milestone 3b beaver; the Fox proves that the engine receives that data, not that we already know how to produce it.
+
+## Common integration criterion
+
+- The model keeps scale, orientation, colors and animations when entering the engine.
+- It is recognizable at the real camera distance, including on a small screen.
+- Collisions and interaction areas are simple and suited to the game; they do not depend on every detail of the mesh.
+- It does not cover important destinations nor block the beaver's path.
+- It works in the installed build, not only in the modeling tool or the editor.
+- The cost of meshes, materials, textures, shadows and transparency is measured on the chosen device before setting limits. Do not set arbitrary polygon counts as a guarantee of performance.
