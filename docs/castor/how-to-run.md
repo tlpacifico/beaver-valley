@@ -20,6 +20,10 @@ Run one action at a time. You can also open `builds/windows/Castor.exe` directly
 
 The placeholder path uses 1-meter cells: the destination snaps to the center of a cell and the turns are at right angles. The character has physical collision with the ground, rock and boundaries. The camera keeps the whole field framed; it does not need manual or automatic following yet. The look and the movement do not represent the final presentation.
 
+## Restarting the first-play experiment
+
+On PC, press Ctrl+R and confirm. On a touchscreen, hold the title for about 1.2 seconds to reveal **Recomeçar (adulto)**, then press it and confirm. Restarting reloads the scene and returns the three branches to their starting positions.
+
 ## Checking and exporting
 
 ```powershell

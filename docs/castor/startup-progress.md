@@ -84,3 +84,62 @@ Plan: [startup-plan.md](startup-plan.md).
 - `./tools/castor.ps1 check` passed cube, movement and asset tests; Windows export and graphical movement capture succeeded. Android export succeeded with the existing missing-icon warning.
 - Installed the new APK on the POCO X7; inspected the framed scene and confirmed movement after a simulated ADB tap. This does not replace a hands-on test or a play session with the child. Screenshots are in ignored `builds/android/`.
 - Next: add three selectable branches and carrying behavior; placement, water-state changes, voice, and the full child test remain open.
+
+## Milestone 2 — three-branch carrying increment (8 November 2026)
+
+- Added `collectible_branch.tscn` using the existing Blender test branch and a simple area collider; the movement scene now contains three separate branch instances.
+- A click/tap on a branch reserves it and sends the beaver to a reachable adjacent grid cell. The branch changes to carried and attaches visibly to the beaver only after arrival. Repeated selection does not create another branch; selecting a different branch swaps it and returns the previous one to its original position.
+- The interaction status is in European Portuguese. Placement and the dam target remain non-interactive; no branch is consumed or duplicated.
+- Extended `movement_test.gd` to cover ray selection, reservation during approach, carrying after arrival, swapping, and repeated selection. `./tools/castor.ps1 check` passed the cube, movement/branch and asset checks at 60 physics steps per second.
+- No graphical capture, export, Android reinstall, hands-on touch test or child play session was done for this increment. Existing Android validation applies to an earlier build; retest this interaction on the POCO before considering the increment device-validated.
+- Next: test whether the branch reads clearly while carried, then implement approach and placement in a separate increment.
+- Follow-up fix: a valid ground destination now cancels a reserved pickup only after path validation; an invalid rock click preserves the approach and reservation. Selecting the already-carried branch during a different pending pickup cancels that pickup and stops the beaver while retaining the carried branch. The integration test covers these cases, and `./tools/castor.ps1 check` passed again.
+
+## Milestone 2 — branch placement and water states (8 November 2026)
+
+- Added a broad, selectable dam target. Tapping it with a carried branch routes the beaver to a reachable adjacent cell; the branch stays carried until arrival, then is placed in one of three visible positions.
+- Repeated target taps while approaching are idempotent. The branch remains in the world's three-item inventory, and a placement without a carried branch or after all three placements is rejected. Existing branch swapping remains available before placement.
+- Each completed placement advances the prepared water surface through three visible depth/color states. This remains a visual state change, not water simulation.
+- Extended `movement_test.gd` to click the target through the camera ray, collect and place all three branches, repeat the target tap during approach, and verify arrival, branch ownership/count and each water state. `./tools/castor.ps1 check` passed the cube, movement/interaction and asset checks at 60 physics steps per second.
+- No graphical play session, export, Android retest or hands-on touch test was done for this increment. The current placement build is not device-validated; earlier device tests do not cover it. Child observation, voice cues, adult restart and full-session checks remain open.
+- Follow-up fix: placement now validates a reachable approach before canceling another reserved pickup. Integration scenarios cover carrying branch A, reserving branch B, tapping the target and ensuring only A is placed; when all placement approach cells are blocked, B's reservation and path remain intact. `./tools/castor.ps1 check` passed again.
+
+## Review and device check — branch interaction (8 November 2026)
+
+- Review found two cancellation defects: changing to a ground destination during collection could pick up a branch remotely, and requesting placement while approaching another branch could pick up and place the wrong branch. Both were corrected and covered by integration tests, including preservation of an existing route when a replacement is invalid.
+- Ran `./tools/castor.ps1 check` successfully, exported Windows and Android, and inspected the Windows movement capture. Android export reported the existing missing-icon warning but completed.
+- Installed the new APK on the POCO X7. Inspected the initial scene and used simulated ADB taps to collect and place one branch; the character carried it to the target and the water changed. This is not a full three-branch hands-on device test or a child play session. The branches appear small at the current camera distance; assess selection and readability during the planned playtest.
+
+## Milestone 2 — provisional beaver volumes (8 November 2026)
+
+- Replaced the upright capsule and rectangular tail in `prototype_actor.gd` with flat-colored primitive volumes: a low body, head, muzzle, paired incisors, ears, eyes, feet and a broad flattened paddle tail. The collision body, movement speed, facing logic and carried-branch anchor are unchanged.
+- The primitives are authored directly in GDScript for this experiment; no third-party asset or final art source was introduced. This does not decide the final modeling origin or visual finish.
+- `./tools/castor.ps1 check` passed cube smoke, movement/collection/placement and asset import checks at 60 physics ticks per second. Re-exported Windows and ran `Castor.exe -- --capture-movement`; the graphical capture succeeded and shows the beaver at the production camera distance. Screenshot: ignored `builds/windows/movement.png`.
+- The pathing and interaction checks passed with the new visual. No Android export/install or real-device capture was done for this visual change, and no child play session assessed species recognition. The Android visual check and the art-origin/finish decision remain open.
+
+## Milestone 2 — visual guidance and adult restart (8 November 2026)
+
+- Added persistent ground rings around available branches and the dam target. A reserved branch receives a larger, brighter ring; unavailable branches lose their ring. Added a three-symbol placement progress indicator and a large Portuguese completion message with a brief scale pulse.
+- Added adult-only restart access: hold the title area for 1.2 seconds to reveal a restart button, then confirm in a dialog. Desktop also supports Ctrl+R and the same confirmation. The title gesture does not issue a movement click.
+- Extended `movement_test.gd` to verify branch cues and initial/completed progress, completion feedback, hidden normal restart control, adult reveal and confirmation. `./tools/castor.ps1 check` passed cube, movement/interaction and asset tests at 60 physics steps per second.
+- No voice or third-party assets were added. Visual cues are provisional geometry/UI and do not validate readability with the child. No graphical capture, export, Android retest, hands-on touch test or child play session was performed for this increment.
+- Remaining before the planned child test: decide and produce provisional voice, try the whole interaction on PC and Android, and observe whether the cues are understood without spoken explanation. The title hold and keyboard shortcut need usability confirmation with an adult; Android requires testing on the real device.
+- Follow-up review: widened the branch selection area to 1.65 × 1.65 m so it covers the visible 0.78 m ring radius. The integration test now selects by raycast on the ring's outer edge, and the full movement/bounds checks still pass. Added a brief burst of five glowing spheres above the dam on completion, alongside the text; the test checks that the burst is hidden before completion and starts when all branches are placed. `./tools/castor.ps1 check` passed. Visual readability still needs an in-game/device observation.
+
+## Visual feedback and beaver — review on POCO (8 November 2026)
+
+- Re-ran `./tools/castor.ps1 check` successfully, exported and installed the Android debug build. The existing missing project icon warning remains.
+- On the POCO, inspected the placeholder beaver and visual rings, and used an ADB-simulated tap to collect one branch. An ADB-simulated long press on the title revealed the adult restart button. The hold also changed the status message to an invalid-ground hint, but did not move the character; revisit input filtering if it causes confusion. The confirmation and full reset were not retested on the phone.
+- No hands-on test, complete three-branch device run or child play session was performed for this version. Provisional voice and its source remain to be decided and implemented before the child test.
+
+## Milestone 2 — provisional pt-PT voice (8 November 2026)
+
+- Generated five Portuguese-European WAV cues (`dam_start`, `help_collect`, `help_place`, `first_placement`, `dam_completed`) with the Piper `pt_PT-tugão-medium` voice. Playback is local; neither the model nor TTS engine is part of the game.
+- The model and Piper 1.3.0 were downloaded to an isolated `%LOCALAPPDATA%/Castor/piper-tts-1.3.0` folder. Piper's GPL-3.0-or-later license is recorded; only the WAV outputs are integrated. Model/dataset provenance and license notes are in `audio.md`.
+- Added `tools/generate-provisional-voice.py` to reproduce the WAVs from a local model file. Direct model/config MD5 values match upstream `voices.json`; the model SHA-256 matches Hugging Face's published file hash.
+- Added one `AudioStreamPlayer` for event lines. Repeating an event is ignored, a new event stops the previous one, and valid changes in movement, pickup or placement cancel outdated instructions. Completion replaces any earlier cue.
+- Added integration assertions for event selection, duplicate help suppression, replacement of an outdated instruction and cancellation. `./tools/castor.ps1 check` passed after the audio integration (cube smoke, movement/interaction and asset checks at 60 physics ticks per second).
+- No device speaker, Android build or hands-on listening check was performed for this audio change. Pronunciation, volume and timing with the visual cues remain open before the child session.
+
+- Voice review: a finished help line originally remained blocked from repeating. Added a test of the player finished signal, observed it fail, and cleared the active event on completion; `./tools/castor.ps1 check` then passed. Pronunciation and volume still require listening on PC and the POCO.
+- Exported the voice-enabled Android build and installed it on the connected POCO; the app launched in the foreground. Audio was not heard or assessed in this automated check. Android export still reported the missing project icon.

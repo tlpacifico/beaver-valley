@@ -21,6 +21,8 @@ switch ($Action) {
     'cube' { & $godotConsole --path $gamePath res://scenes/bootstrap.tscn }
     'assets' { & $godotConsole --path $gamePath res://scenes/asset_import_test.tscn }
     'check' {
+        & $godotConsole --headless --path $gamePath --import
+        if ($LASTEXITCODE -ne 0) { throw 'The project resources failed to import.' }
         & $godotConsole --headless --path $gamePath res://scenes/bootstrap.tscn -- --smoke-test
         if ($LASTEXITCODE -ne 0) { throw 'The cube test failed.' }
         & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/movement_test.gd

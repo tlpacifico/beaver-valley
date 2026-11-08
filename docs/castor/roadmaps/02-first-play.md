@@ -23,15 +23,15 @@ These are proposed files and checks, not a new interaction system already implem
 
 ## Tasks
 
-- [x] Prepare a small area with ground, bank, water and building target, using simple shapes. The water and target are visual placeholders and remain walkable; interaction is not implemented.
+- [x] Prepare a small area with ground, bank, water and a broad building target, using simple shapes. The ground remains walkable; the target accepts a carried branch.
 - [ ] Try a diorama camera, fixed while the whole usable area fits on the screen. Before expanding the valley, test smooth following of the beaver with a fixed angle and no manual rotation. If the target leaves the frame, try an indicator at the edge; only keep it if it helps orientation. Test object selection with the camera moving.
 - [ ] Tap/click a point for the beaver to walk there. Show where it is going and prevent unreachable targets.
-- [ ] Tap/click a branch to approach and collect it; clearly show what it is carrying.
-- [ ] Tap/click a wide slot to approach and place. Do not require dragging or fine precision.
-- [ ] Allow dropping or swapping the branch and handle repeated taps without duplicating materials.
-- [ ] Prepare three visible changes in the water, one per placement. Do not physically simulate the river.
-- [ ] Prepare the [script per event and the provisional voice](../audio.md) before testing with the child; choose the origin of the voice. Add visual cues and repetition without overlapping lines. Text can support, but must not be necessary.
-- [ ] Prepare a restart of the experiment for the adult, without confusing the child's controls.
+- [x] Tap/click one of three branches to approach and collect it; selecting another branch returns the carried branch to its origin.
+- [x] Tap/click a wide slot to approach and place. Do not require dragging or fine precision.
+- [x] Allow swapping the carried branch and handle repeated taps without duplicating materials.
+- [x] Prepare three visible changes in the water, one per placement. Do not physically simulate the river.
+- [x] Prepare the [script per event and the provisional voice](../audio.md) before testing with the child. Five pt-PT WAV cues and serialized event playback are integrated; pronunciation, volume and visual pairing still need PC and Android listening checks. Text can support, but must not be necessary.
+- [x] Prepare a restart of the experiment for the adult, without confusing the child's controls. A long press on the title reveals a confirmation-protected adult control; Ctrl+R is also available on desktop.
 - [ ] Test the complete path on the PC and on Android beforehand.
 - [ ] Invite her to play for a few minutes, trying both devices at comfortable moments.
 - [ ] Adjust the main point of confusion and observe again only as much as needed.

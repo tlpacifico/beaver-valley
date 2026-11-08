@@ -99,3 +99,7 @@ Skeleton (rig), weights and animation are left for the milestone 3b beaver; the 
 - It does not cover important destinations nor block the beaver's path.
 - It works in the installed build, not only in the modeling tool or the editor.
 - The cost of meshes, materials, textures, shadows and transparency is measured on the chosen device before setting limits. Do not set arbitrary polygon counts as a guarantee of performance.
+
+## Provisional audio asset provenance
+
+The five generated voice clips use Piper `pt_PT-tugão-medium` and are inventoried with author/source and license notes in [audio production](audio.md#provisional-voice-source-and-event-playback). The model card identifies the Nabu Casa Voice Datasets as CC0 and does not name the performer; the output license is not separately specified, so the clips remain for the family prototype pending clarification before redistribution.
