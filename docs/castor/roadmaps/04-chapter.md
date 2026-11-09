@@ -1,8 +1,8 @@
 # 4 — Complete chapter
 
-[Overall roadmap](../roadmap.md) · Previous: [visual dam](03b-visual-dam.md) · Next: [MVP](05-mvp.md)
+[Overall roadmap](../roadmap.md) · Previous: [visual dam](03b-visual-dam.md) · Next: [visual valley composition](04b-visual-valley.md)
 
-**Goal:** connect dam, home and food in a playable tale with an ending. Depends on an understandable dam and reliable saving. This milestone will be detailed after the previous tests.
+**Goal:** connect dam, home and food in a playable tale with an ending. Depends on an understandable dam and reliable saving. The functional chapter is implemented; this does not constitute acceptance of its final visual presentation. [Milestone 4b](04b-visual-valley.md) now owns the remaining valley composition and essential visual integration before MVP finalization.
 
 Associated 3D production: [characters P3](3d-characters.md) and [environment A3](3d-environment.md). Produce the home, food, the animals' remaining appearances and the ending after defining the respective interactions.
 
@@ -21,7 +21,7 @@ Reuse interactions across stages, manage chapter progression and coordinate line
 - [x] Reuse the owl for help and the otter for the lake celebration already integrated in 3b. Do not require otter demonstrations or new animations of it to complete the chapter.
 - [x] Extend saving to the home, food, transitions and ending; also recover a session interrupted between stages.
 - [x] Create the ending with snow and the family reunited, without suggesting that the beaver hibernates. Allow continuing to visit the valley.
-- [ ] Integrate the models and states of the home and food, adapt the owl's cues to the stages and expand the valley with reusable assets. The simplified otter from 3b remains valid. Record sources and exports in the inventory.
+- [ ] Complete the visual integration of home, food, support characters and the expanded valley through [4b, V3–V4](04b-visual-valley.md). Functional states already exist; this outstanding work is explicitly carried into 4b, not marked complete. The simplified otter can be reused if it fits the accepted scene. Record sources and exports in the inventory.
 - [x] Allow starting a new adventure through a deliberate action, protecting progress against accidental restarts.
 - [ ] Play the complete path and try separate sessions with your daughter.
 

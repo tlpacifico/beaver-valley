@@ -1,6 +1,6 @@
 # Castor mockup status
 
-These drawings are concept studies, not implementation specifications. See the [current roadmap](../roadmap.md) and the [review record](../roadmap-review.md).
+These drawings are concept studies, not implementation specifications. On 9 November 2026, the author agreed to use `valley-map-v3.svg` as the composition and visual-identity reference for [milestone 4b](../roadmaps/04b-visual-valley.md): a small diorama, crossing river, dam, upstream lake, woodland and lakeside home/food. The translation is reviewed in-engine; exact pixels and all historical labels are not requirements. See the [current roadmap](../roadmap.md) and the [review record](../roadmap-review.md).
 
 - **`3 / 8`:** illustrative value in the camera and collect/fit studies, including the v3 ones. It does not define eight materials nor require showing a numeric counter. How progress is presented will be tested in 3a.
 - **Map with branches, stones and mud:** keeps the proposal of collection zones. Milestone 2 uses only branches; the role and inclusion of stones/mud in the MVP will be decided before 3a. Scenery stones are separate assets.

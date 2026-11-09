@@ -1,6 +1,6 @@
 # Castor — MVP roadmap
 
-Status: milestone 1 complete. Godot 4.7.2 and GDScript retained; movement and test assets were validated on Windows and the POCO X7. The renamed Android build was reinstalled and checked on the POCO. The author requested closing milestone 3b for sequencing after a short POCO device check. Milestone 4 is functionally complete through the winter ending and protected new adventure; child/device validation, final art and MVP polish remain. The 3a/3b human playtests, voice listening, 15-minute performance rehearsal and priority-device choice remain open. See [how to run](how-to-run.md).
+Status: milestone 1 complete. Godot 4.7.2 and GDScript retained; movement and test assets were validated on Windows and the POCO X7. The renamed Android build was reinstalled and checked on the POCO. The author requested closing milestone 3b for sequencing after a short POCO device check. Milestone 4 is functionally complete through the winter ending and protected new adventure; child/device validation remains open. A new milestone 4b owns the visual valley composition and essential art integration before MVP polish; the functional chapter is not an accepted final presentation. The 3a/3b human playtests, voice listening, 15-minute performance rehearsal and priority-device choice remain open. See [how to run](how-to-run.md).
 
 ## Goal
 
@@ -43,20 +43,21 @@ Detail the first milestones and review the following ones in light of the tests.
 | [3a. Playable dam](roadmaps/03a-playable-dam.md) | Complete stage with provisional shapes, obstacles, help, personalization and saving. | She can finish and resume the dam without getting stuck before the visual production. | In progress |
 | [3b. Dam with visual presentation](roadmaps/03b-visual-dam.md) | Animated beaver and stretch of the valley integrated into the validated experience. | Readable art, interactions preserved and performance observed on the device. | Closed for sequencing by author; full validation and outstanding checks remain open |
 | [4. Chapter](roadmaps/04-chapter.md) | Dam, home, food and ending connected by the story. | Complete path, including returning to the valley and recovering progress. | Implemented through the winter ending and protected new adventure; child/device validation and final art pending |
+| [4b. Visual valley composition](roadmaps/04b-visual-valley.md) | A coherent playable valley recognizable from the v3 map: river, dam, upstream lake, woodland, lodge and food store. | Author visual acceptance, preserved interactions and saves, and recorded child/priority-device checks. | Planned; next production phase |
 | [5. MVP](roadmaps/05-mvp.md) | Chapter presented and adjusted for her to play on the chosen device. | Delivery criteria below verified on an installed build. | Not started |
 
-Original sequence: 1 → 2 → 3a → 3b → 4 → 5. The author requested moving to 3a while unperformed milestone 2 checks remain open. "Milestone 3" refers to the 3a + 3b set in the vision documents. Learning, provisional voice and observation accompany the milestones; they are not isolated phases at the end. The technical path for animations is tested in milestone 1 with a test asset; the finish of the game's characters comes in after validating the play.
+Current sequence: 1 → 2 → 3a → 3b → 4 → 4b → 5. Milestone 4 keeps its existing name and files; 4b was added on 9 November 2026 to address the visual gap identified by the author. Functional completion does not imply visual acceptance. Outstanding checks from earlier milestones remain open. The author requested moving to 3a while unperformed milestone 2 checks remain open. "Milestone 3" refers to the 3a + 3b set in the vision documents. Learning, provisional voice and observation accompany the milestones; they are not isolated phases at the end. The technical path for animations is tested in milestone 1 with a test asset; the finish of the game's characters comes in after validating the play.
 
 ## 3D production across the milestones
 
 We need 3D models usable in the engine, not just the illustrated references. Modeling, preparing materials, creating a skeleton for animation, animating, exporting and integrating are distinct tasks. The environment also needs visual construction, collisions and walkable areas.
 
-| Track | Milestones 1–2 | Milestone 3 | Milestone 4 | Milestone 5 |
-|---|---|---|---|---|
-| [3D characters](roadmaps/3d-characters.md) | Provisional shapes; animated import test; choice of origin and finish. | 3a: provisional volumes. 3b: animated beaver, simple owl and otter celebration. | Add only the actions used in the rest of the story. | Fix animations, materials and visual cost. |
-| [Environment and buildings](roadmaps/3d-environment.md) | Valley with simple volumes, river and three branches. | One stretch with the intended look; dam and water states. | Home, food store, rest of the valley and snow. | Improve readability, lighting and performance. |
+| Track | Milestones 1–2 | Milestone 3 | Milestone 4 | Milestone 4b | Milestone 5 |
+|---|---|---|---|---|---|
+| [3D characters](roadmaps/3d-characters.md) | Provisional shapes; animated import test; choice of origin and finish. | 3a: provisional volumes. 3b: animated beaver, simple owl and otter celebration. | Add only the actions used in the rest of the story. | Harmonize silhouettes, scale and materials in the accepted valley; preserve essential actions. | Fix animations, materials and visual cost. |
+| [Environment and buildings](roadmaps/3d-environment.md) | Valley with simple volumes, river and three branches. | One stretch with the intended look; dam and water states. | Functional home, food store and snow. | Compose the river, banks, dam and lake; integrate woodland, lodge, food and winter with accessible routes. | Improve readability, lighting and performance. |
 
-At the end of milestone 2, validate a beaver made of simple volumes in the real camera and record who produces the art and what finish is viable. In milestone 3b, validate **an animated beaver and a small stretch of the valley in the engine**, at the real camera distance and on the chosen device, before producing the whole set. These roadmaps are tracks of the same project, not additional phases at the end. The v3 illustration guides palette, silhouette and personality; reproducing its finish is not a requirement already assumed. Low-poly is an alternative to evaluate, not a decision made.
+At the end of milestone 2, validate a beaver made of simple volumes in the real camera and record who produces the art and what finish is viable. In milestone 3b, validate **an animated beaver and a small stretch of the valley in the engine**, at the real camera distance and on the chosen device, before producing the whole set. These roadmaps are tracks of the same project, not additional phases at the end. The v3 illustration guides palette, silhouette and personality; reproducing its finish is not a requirement already assumed. Low-poly is an alternative to evaluate, not a decision made. In milestone 4b, the v3 map becomes the composition reference: preserve its river/dam/lake relationships and friendly diorama identity, with deliberate differences reviewed in-engine. This does not promote every old mockup label to a gameplay requirement.
 
 The origin of each asset can be own creation, adaptation of an existing asset or a combination of both. Record that choice and the license in the [asset inventory](3d-production.md). Do not assume modeling experience just because there is programming experience.
 
@@ -70,6 +71,7 @@ The origin of each asset can be own creation, adaptation of an existing asset or
 - [ ] Closing and reopening recovers progress; interrupting the application does not corrupt the save.
 - [ ] The story has an ending and the valley can be revisited.
 - [ ] The necessary characters, environment and buildings are integrated; there are no provisional shapes that hurt the understanding of the story.
+- [ ] Milestone 4b visual acceptance is recorded: the playable valley has the agreed composition, and river, dam, lake, lodge and food store communicate the story without mandatory labels.
 - [ ] She shows interest in continuing, coming back or showing the building; also record it if this does not happen.
 
 A test with your daughter validates this family MVP; it does not show that the game works for the whole 6-to-10 age range.
@@ -93,11 +95,12 @@ If the work grows, reduce variety of materials, decoration, size of the valley a
 | Dam materials: branches, stones and mud; role of the candidates | Before starting 3a; update inventory and tasks with the decision |
 | Size of the dam, number of obstacles and presentation of progress | Milestone 3a; `3 / 8` is only a mockup example |
 | Home and food interactions; comfortable duration | Before and during milestone 4 |
-| Production of models, animations and final voice | Models/animations in 3b–4; provisional voice from 2 and finish in 5 |
+| Valley composition and visual acceptance | 4b: approve the in-engine layout first, then a representative visual section before replication |
+| Production of models, animations and final voice | Models/animations in 3b–4, remaining composition and essential integration in 4b; provisional voice from 2 and finish in 5 |
 | Origin of the art and viable finish | By the end of milestone 2, before the milestone 3b production |
 | Script per event and origin of the provisional voice | Milestone 2, before the test with your daughter |
 | Other devices or public release | After the family MVP |
 
-Next action: play the complete path with the child on the PC and, when available, the phone; then move to milestone 5 for presentation, final art/voice and device validation. Carry forward the outstanding 3a/3b checks.
+Next action: start [milestone 4b](roadmaps/04b-visual-valley.md) with baseline captures and the [playable relief sample](valley-relief-plan.md): enclosing hills, an excavated channel, a lake basin and demonstrated uphill/downhill movement using simple volumes. Review that view with the author before detailed visual production. Continue short child/device checks throughout; proceed to milestone 5 only with an accepted, coherent valley and explicitly recorded validation status. Carry forward the outstanding 3a/3b/4 checks.
 
 External review: see [assessment and handling of the suggestions](roadmap-review.md). The adjustments preserve the three stages of the MVP and do not choose an engine, final style or art supplier.

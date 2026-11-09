@@ -1,10 +1,10 @@
 # 5 — MVP for your daughter
 
-[Overall roadmap](../roadmap.md) · Previous: [chapter](04-chapter.md)
+[Overall roadmap](../roadmap.md) · Previous: [visual valley composition](04b-visual-valley.md)
 
-**Goal:** deliver an installed build that is comfortable to play on the priority device. Depends on the complete chapter. Releasing here means making it available to your daughter; not publishing on a store.
+**Goal:** deliver an installed build that is comfortable to play on the priority device. Depends on the complete chapter and the accepted visual valley from milestone 4b, with its validation status recorded. Releasing here means making it available to your daughter; not publishing on a store.
 
-This milestone finalizes and optimizes the production already integrated in milestones 3b–4. It does not concentrate the modeling of the whole game: follow [characters P4](3d-characters.md) and [environment A4](3d-environment.md), with the [inventory](../3d-production.md) up to date.
+This milestone finalizes and optimizes the production already integrated in milestones 3b–4b. River/terrain composition, essential lodge and food presentation, and the coherent visual set belong to 4b; if those remain unbuilt, return to that phase rather than treating them as polish. It does not concentrate the modeling of the whole game: follow [characters P4](3d-characters.md) and [environment A4](3d-environment.md), with the [inventory](../3d-production.md) up to date.
 
 ## Learn
 

@@ -16,7 +16,7 @@ Initial state: 2D concepts and mockups exist. No ready-made 3D models, skeletons
 | Family at the end | Simple composition, reusing models where appropriate | Milestone 4 | To be defined without creating new protagonists |
 | Terrain and banks | Valley, boundaries and walkable surfaces | Placeholder in 1–3a; visual in 3b | To be produced |
 | Water | River, reduced current, puddle and lake | Placeholder in 2–3a; finish in 3b | To be produced |
-| Vegetation and scenery stones | Small reusable set, not implying collection | Milestone 3b | To be produced |
+| Vegetation and scenery stones | Small reusable set, not implying collection | Milestone 3b | Procedural scenery retained; two Meshy golden trees integrated provisionally, with licence and visual acceptance pending |
 | Branches | Normal, thick, gnawed and spoiled, recognizable by shape | Normal placeholder in 2; obstacles in 3a; finish in 3b | To be produced |
 | Building stones | Candidate collectible material, distinct from scenery stones; function to be decided | Decide before 3a; if included, placeholder in 3a and visual in 3b | Postponed for milestone 3a by author decision |
 | Building mud | Candidate material; define a function without depending on the leak challenge, which is postponed | Decide before 3a; if included, placeholder in 3a and visual in 3b | Postponed for milestone 3a by author decision |
@@ -112,3 +112,11 @@ The four procedural sound effects in `game/audio/effects/` are original project-
 - Bank, vegetation, stones and progressive dam: original procedural geometry in `game/scripts/visual_environment.gd`, editable as source; decorative elements are non-colliding and scenery stones are not collectible. No third-party asset or external license applies.
 - Owl and otter: original non-colliding procedural primitives in `game/scripts/support_characters.gd`, with transform-driven appearance and celebration; no third-party asset or external license applies.
 - `./tools/castor.ps1 check` covers actor animation loops, branch orientation, action interruptions, scenery states, support-character timing and existing gameplay/save behavior. Visual/device and child recognition checks are still required.
+
+## Scenery reference — golden tree (9 November 2026)
+
+`art/environment/scenery-sample/references/golden-tree-v1.png` is an AI-generated 2D reference created for the project with the built-in OpenAI image generation tool. Creative direction follows the project's golden tree concept; no external artist or third-party mesh is claimed. Applicable OpenAI service terms govern the generated output; no separate external asset licence is asserted. See the adjacent `README.md` for provenance. It is intended for an image-to-3D trial and has not been converted, imported or validated as a game asset. Record the generation service and terms of any derived mesh separately before adoption.
+
+## Meshy golden tree trial (9 November 2026)
+
+The author supplied a generated/remeshed GLB after reporting Meshy Pro access. Original and provenance: `art/environment/meshy-tree/originals/golden_tree.glb` and the adjacent parent `README.md`. It contains 3112 triangles and no materials. The editable prepared source is `art/environment/meshy-tree/golden_tree.blend`, reproducible with `prepare_tree.py`; the exported candidate is `game/assets/environment/meshy_tree/golden_tree.glb`. Local preparation added two materials, corrected normals and set a provisional 2.4 m height. Two instances are provisionally integrated at 0.68 scale in the rear side margins of the main valley, replacing two procedural bush clusters. They add no collision or interaction targets and remain in the shared environment across dam, home, food and winter states. The source and export must stay paired if the geometry or materials change. Generation-time licence/attribution must be confirmed: an earlier UI showed CC BY 4.0, while the file itself has no licence metadata; later Pro access must not be assumed to retroactively change those terms. See the asset README for the unresolved terms and visual/device checks.

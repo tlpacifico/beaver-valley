@@ -4,7 +4,9 @@ class_name VisualEnvironment
 ## Attach as a child of the walkable world. This node creates no physics bodies.
 
 const Shapes = preload("res://scripts/prototype_shapes.gd")
+const GoldenTreeScene = preload("res://assets/environment/meshy_tree/golden_tree.glb")
 const WATER_GLINT_X: Array[float] = [-0.28, 0.0, 0.32]
+const GOLDEN_TREE_SCALE: float = 0.68
 
 @export var water_depth: float = 0.8
 @export var water_front_edge: float = -4.75
@@ -117,13 +119,22 @@ func _build_water_glints() -> void:
 
 
 func _build_vegetation() -> void:
-	# Bush clusters stay at the far edges so paths, branches and the dam remain clear.
+	# Side-margin vegetation frames the valley while keeping paths and targets clear.
 	_add_bush(Vector3(-5.55, 0.0, -2.6), 0.9)
 	_add_bush(Vector3(5.55, 0.0, -2.45), 0.82)
-	_add_bush(Vector3(-5.35, 0.0, 3.55), 0.8)
-	_add_bush(Vector3(5.35, 0.0, 3.6), 0.88)
+	_add_golden_tree(Vector3(-5.55, 0.0, 1.35))
+	_add_golden_tree(Vector3(5.55, 0.0, 1.35))
 	_add_reeds(Vector3(-4.2, 0.0, -3.65), 4)
 	_add_reeds(Vector3(4.0, 0.0, -3.72), 3)
+
+
+func _add_golden_tree(at: Vector3) -> void:
+	# Trees are decorative only: no collision or interaction target is added.
+	var tree := GoldenTreeScene.instantiate() as Node3D
+	tree.name = "GoldenTree"
+	tree.position = at
+	tree.scale = Vector3.ONE * GOLDEN_TREE_SCALE
+	add_child(tree)
 
 
 func _add_bush(center: Vector3, scale_factor: float) -> void:

@@ -4,7 +4,7 @@
 
 **Goal:** gradually replace the provisional assets with the chosen presentation, preserving the validated play. Depends on milestone 3a, on the animation test during startup and on the decision about the origin of the art and finish by the end of milestone 2.
 
-**Current status:** closed for sequencing at the author's request. The visual set was exercised on the POCO with simulated taps, but full milestone validation has not been completed: the 15-minute adult rehearsal, listening checks, hands-on obstacle checks, priority-device choice and child observation remain open. Unchecked tasks below remain outstanding.
+**Current status:** closed for sequencing at the author's request. The visual set was exercised on the POCO with simulated taps, but full milestone validation has not been completed: the 15-minute adult rehearsal, listening checks, hands-on obstacle checks, priority-device choice and child observation remain open. Unchecked tasks below remain outstanding. The later [milestone 4b](04b-visual-valley.md) owns their remaining composition and essential visual-production work; historical closure for sequencing does not constitute final visual acceptance. Human/device checks remain open until actually performed.
 
 ## Tasks
 

@@ -281,3 +281,54 @@ This supersedes the earlier notes that the home and food progress were transient
 - Extended home and food integration tests to force a failure on the final placement. They verify the warning through the home-to-food transition, the winter ending and continuing to visit, then save successfully to the isolated test directory. The deliberate failures emit expected warnings.
 - Schema validation now checks the schema-version type before comparing it, accepts only exact supported numeric versions, rejects fractional/non-numeric versions, and avoids integer conversion on malformed JSON. Save validation and file loading share the safe type check. Added public validation and malformed-primary/backup-recovery coverage for an array schema version.
 - `./tools/castor.ps1 check` passed all groups: bootstrap, movement/dam, save, home, food, ending, support characters, environment, beaver and asset imports. Windows and Android device checks, child play, and voice listening were not performed.
+
+
+## Roadmap adjustment — visual valley composition (9 November 2026)
+
+- At the author's request, added milestone 4b between the functional chapter and MVP finalization. The current implementation is not accepted as the final visual valley; historical 3b sequencing closure and passing functional tests do not imply visual acceptance.
+- Added `roadmaps/04b-visual-valley.md` with a v3-reference visual contract, scope boundaries, five staged deliverables, code/asset work areas and explicit author, child and device acceptance criteria. Start with an in-engine simple-volume composition, then playable river/dam/routes, a coherent visual set, home/food/winter integration and full validation.
+- Preserve existing mechanics and saved progress; keep required approaches off open water without adding swimming. Stones/mud do not become collectible merely because they appear in the reference. Exact composition and representative art are reviewed with the author before detailed production is replicated.
+- Updated the main roadmap, chapter/MVP navigation, 3b carry-over, environment production track and mockup guidance. No game code, assets or completed validation statuses changed. No commit created.
+- Validation: checked changed Markdown links and diff formatting; game tests were not rerun for this documentation-only change.
+
+## Planned Higgsfield scenery pilot (9 November 2026)
+
+- Added `higgsfield-asset-pilot.md` at the author's request and linked it from 4b V3. The experiment compares one generated tree and one generated rock with simple Blender equivalents in an isolated Godot scene beside the existing beaver.
+- Defined starting prompts, source/export locations, bounded attempts and cleanup, active/waiting time and credit accounting, mesh/material inspection, repeat-instance comparison and an edit/re-export check. Generation requires an available route and a recorded credit ceiling before spending; no subscription or tool installation was performed.
+- Adoption is decided separately for each asset category from visual acceptance, technical usability, provenance and total effort. Better appearance without reduced effort is recorded as a tradeoff; missing evidence remains inconclusive. The experiment does not block simple-volume valley composition.
+- Documentation only: no assets generated, game code changed, credits consumed, device validation claimed or commit created. Checked local Markdown links and diff formatting; no game tests were rerun.
+
+## Scenery plan adjustment — local Blender route (9 November 2026)
+
+- The author showed a subscription checkout during Higgsfield Blender plugin connection: a three-day trial followed by a quoted EUR 97.17 charge with a one-cycle discount. This is evidence of that account flow, not a universal pricing statement. No purchase or completed generation was reported.
+- Deferred the Higgsfield pilot and removed it as a prerequisite for 4b V3. Its tasks remain an inactive proposal, to revisit only at the author's request with access and spending limits established.
+- Added `blender-scenery-sample-plan.md`: create one tree and one rock locally with Blender Python and editable sources, export GLB, inspect beside the beaver in an isolated Godot scene, check reuse and edit/re-export, then obtain visual acceptance before expanding the set. No paid service is required for this route.
+- Documentation only; no models generated, tools changed, subscription started or commit created. Checked Markdown links and diff formatting; gameplay tests were not rerun.
+
+## Golden tree reference (9 November 2026)
+
+- Selected a golden rounded-canopy tree with a pale trunk for the first image-to-3D experiment at the author's request.
+- Generated the isolated reference with the built-in OpenAI image generation tool and saved it as `art/environment/scenery-sample/references/golden-tree-v1.png`. This is a 2D concept input, not a validated 3D asset. No Meshy generation or credits were used by this action.
+
+## Meshy tree received and prepared (9 November 2026)
+
+- The author resumed an external generation trial using Meshy and reported Pro access; Higgsfield remains deferred. Received the tree GLB and preserved an unchanged copy under `art/environment/meshy-tree/originals/`.
+- Confirmed 3112 triangles, 2626 exported vertices, one mesh and no materials. Prepared a reproducible editable Blender source and GLB with a ground-level origin, provisional 2.4 m height, seam welding, recalculated smooth normals and gold/beige material assignments. No further polygon reduction was required.
+- Inspected a Blender render: the intended silhouette is present, with minor canopy irregularities still visible. Blender import/export/render and Godot resource import succeeded. Main scene and gameplay saves unchanged; no commit created.
+- At this point, an in-game comparison and production adoption were pending. The later provisional valley integration and desktop capture are recorded below; author visual acceptance, device checks and generation-time licence confirmation remain pending. This user-supplied Meshy trial does not activate a Higgsfield subscription or authorize further purchases.
+
+## Meshy golden tree integrated provisionally (9 November 2026)
+
+- Integrated two instances of the prepared Meshy golden tree into the actual valley through `visual_environment.gd`, replacing two rear-side procedural bush clusters. Each is scaled to 0.68 of the prepared 2.4 m model. The trees are decorative only, add no physics blockers or targets, and persist in the shared environment during dam, home, food and winter progression.
+- Kept both `art/environment/meshy-tree/golden_tree.blend` and its paired export `game/assets/environment/meshy_tree/golden_tree.glb`; the user-supplied original remains untouched. Updated the production inventory and asset README with current integration and pending provenance.
+- Validation: `./tools/castor.ps1 check` passed all groups, including the visual-environment and asset-import checks. Re-exported the Windows build and captured the completed winter valley with Godot using the project scene and isolated `user://capture_save/`; inspected `builds/windows/ending_valley.png`. The two trees are visible at the actual gameplay camera distance and do not cover the lodge, food store, dam or branch targets in this view.
+- Limits: desktop screenshot and automated checks only; no Android, phone performance, child or author visual acceptance. Generation-time licence/attribution remains unconfirmed; an earlier UI showed CC BY 4.0 and later Meshy Pro access is not treated as retroactive permission. This is provisional integration, not completion of 4b V3.
+
+
+## Proposed playable valley relief (9 November 2026)
+
+- Following the author's feedback that the tree integration improved the scene but it still reads as a board game, added `valley-relief-plan.md` and linked it from 4b and the main roadmap. The flat slab in the mockup is no longer the terrain target; palette and spatial relationships remain references.
+- Proposed an authored terrain with a low central floor, enclosing hills, excavated riverbed, upstream lake basin and dry connected routes. The first delivery is a landform review and a slope-traversal sample, before further decoration.
+- Identified flat-ground assumptions in input, path generation, actor arrival, spawn and item/stage heights. Proposed shared terrain/layout/navigation services, a height-aware route graph with edge clearance/slope checks, and preserved stable save IDs.
+- Defined staged chapter integration, water/winter adaptation and save/input/device acceptance checks. Dimensions and slope limits are initial proposals, not validated performance or usability claims. No implementation or commit performed.
+- Validation: checked local Markdown links and diff formatting. No game tests rerun for this documentation-only change.

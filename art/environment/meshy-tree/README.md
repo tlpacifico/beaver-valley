@@ -1,0 +1,14 @@
+# Meshy golden tree trial
+
+- Original: `originals/golden_tree.glb`, copied unchanged from the user-supplied `Meshy_AI_Golden_Puff_Tree_1109213245_generate.glb`.
+- Origin: Meshy image-to-3D generation and approximately 3K remesh performed by the author, using the project-generated golden tree reference. The user reported having Meshy Pro before supplying the export. Exact generation engine is not confirmed by the file metadata.
+- Authorship/provenance: AI-generated through Meshy under the author's account; local preparation by the project assistant. Not a hand-modeled third-party artist asset.
+- Licence/attribution: account-specific terms and generation-time licence remain to be verified before production adoption. An earlier UI screenshot displayed CC BY 4.0; the GLB contains no licence metadata. Do not assume the later Pro subscription retroactively changes an earlier generation's terms. Keep provenance and attribution pending, rather than asserting ownership or an external licence without evidence.
+- Input: 103800 bytes, 2626 exported vertices, 3112 triangles, one mesh, no materials or textures.
+- Preparation: `prepare_tree.py` imports the original, applies orientation, normalizes height to 2.4 m with a ground-level origin, welds duplicate seam vertices, recalculates normals and adds golden-canopy and pale-trunk materials. Material assignment uses a provisional height boundary of 0.72 m; the model remains one editable mesh.
+- Source: `golden_tree.blend`. Export: `game/assets/environment/meshy_tree/golden_tree.glb`.
+- Reproduction: run Blender in background with `--factory-startup --python art/environment/meshy-tree/prepare_tree.py` from the repository root. This rebuilds the prepared source/export from the original; preserve manual edits in a separate version before rerunning.
+- Preview: `builds/scenery-sample/meshy-tree-preview.png`, a Blender render, not an in-game validation.
+- Observations: silhouette is recognizable; minor canopy dents and faceting remain. No further decimation needed for this first trial. Evaluate at gameplay camera distance before refining.
+- Integration: two instances at 0.68 scale replace the rear side procedural bush clusters in the main valley. They are decorative only, have no collision or interaction targets and remain present through the existing stage transitions. The prepared source and engine export remain paired.
+- Validation: Blender import/export/render and Godot resource import succeeded; `./tools/castor.ps1 check` passed; a Windows Godot project capture displayed both trees in the completed winter valley at the gameplay camera distance (`builds/windows/ending_valley.png`). This is a desktop visual check only. Author visual acceptance, device performance and generation-time licence/attribution confirmation remain pending.
