@@ -12,6 +12,7 @@ At the repository root, in PowerShell:
 
 ```powershell
 ./tools/castor.ps1 run
+./tools/castor.ps1 follow
 ./tools/castor.ps1 editor
 ./tools/castor.ps1 cube
 ```
@@ -19,6 +20,10 @@ At the repository root, in PowerShell:
 Run one action at a time. You can also open `builds/windows/Castor.exe` directly, without the editor. Clicking a free spot on the ground makes the character walk to the yellow circle, going around the rock. Another valid click changes the destination; clicking the rock or outside the ground does not cancel the previous path. Closing the window ends the test. In the `cube` scene, the button pauses and resumes the rotation.
 
 The placeholder path uses 1-meter cells: the destination snaps to the center of a cell and the turns are at right angles. The character has physical collision with the ground, rock and boundaries. The camera keeps the whole field framed; it does not need manual or automatic following yet. The look and the movement do not represent the final presentation.
+
+### Comparing the fixed-angle follow camera
+
+Run `./tools/castor.ps1 follow` to try the camera-follow experiment. It keeps the current orthographic projection and viewing angle, smoothly tracking the beaver; `./tools/castor.ps1 run` always opens the original fixed camera. Close the game and launch the other command to compare. In follow mode, check whether the nearby branch and dam target remain easy to see and select as the beaver walks across the valley. The camera can move distant parts of the play area off-screen; this is an experiment, not a camera decision.
 
 ## Restarting the first-play experiment
 
@@ -32,9 +37,9 @@ On PC, press Ctrl+R and confirm. On a touchscreen, hold the title for about 1.2 
 ./tools/castor.ps1 export-android
 ```
 
-The `check` command tests the cube, navigation (including the obstacle, redirection, projected mouse event and speed), and static and animated asset imports. Success ends with `CASTOR_ASSETS_OK`. It does not validate real touch or understanding by the child.
+The `check` command tests the cube, navigation (including the obstacle, redirection, projected mouse event and speed), the dam, isolated save recovery, the home and food stages, and static and animated asset imports. Success ends with `CASTOR_ASSETS_OK`. It does not validate real touch or understanding by the child.
 
-For automatic graphical verification of the current executable, run `builds/windows/Castor.exe -- --capture-movement`; it sends a mouse event, checks that movement started, saves `movement.png` to Godot's user data folder and exits on its own. Do not pass that option for normal play. For the old cube test with the engine, use the explicit scene: `Godot_v4.7.2-stable_win64_console.exe --path game res://scenes/bootstrap.tscn -- --smoke-test`.
+For automatic graphical verification of the current executable, run `builds/windows/Castor.exe -- --capture-movement`; it sends a mouse event, checks that movement started, saves `movement.png` to Godot's user data folder and exits on its own. Run `builds/windows/Castor.exe -- --capture-home` to make the home stage available immediately, build it, and save `home.png` and `home_complete.png` to the same folder. Run `builds/windows/Castor.exe -- --capture-food` to build the home and the food store and save `food.png` and `food_complete.png`. Run `builds/windows/Castor.exe -- --capture-ending` to build the whole chapter and save `ending.png` and `ending_valley.png`. The capture modes use an isolated `user://capture_save/` and do not touch the normal chapter save. Do not pass those options for normal play. For the old cube test with the engine, use the explicit scene: `Godot_v4.7.2-stable_win64_console.exe --path game res://scenes/bootstrap.tscn -- --smoke-test`.
 
 The debug exports generate `builds/windows/Castor.exe` and `builds/android/castor-debug.apk`. `builds/` and caches stay out of Git. The script does not install tools if they are missing.
 

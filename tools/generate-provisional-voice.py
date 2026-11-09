@@ -1,4 +1,4 @@
-"""Generate Castor's milestone 2 voice lines from a local Piper voice model."""
+"""Generate Castor's provisional pt-PT voice lines from a local Piper model."""
 
 from __future__ import annotations
 
@@ -11,10 +11,22 @@ from piper import PiperVoice
 
 LINES: dict[str, str] = {
     "dam_start": "Vamos ajudar o castor a construir uma represa!",
-    "help_collect": "Escolhe um galho para levar.",
-    "help_place": "Agora leva o galho até à represa.",
+    "help_collect": "Escolhe um ramo para levar.",
+    "help_place": "Agora leva o ramo até à represa.",
     "first_placement": "Olha, a água está a mudar!",
     "dam_completed": "Fizeste uma represa!",
+    "thick_branch": "Este ramo é grosso. Podes roê-lo ou escolher outro.",
+    "rotten_branch": "O ramo podre dobrou! Vamos escolher outro.",
+    "help_compatible": "Escolhe o ramo verde para a represa.",
+    "home_invite": "Agora vamos construir a casa!",
+    "help_home_collect": "Escolhe uma peça para a casa.",
+    "help_home_place": "Leva a peça até à casa.",
+    "food_invite": "Agora vamos guardar comida para o inverno!",
+    "help_food_collect": "Escolhe um feixe de ramos para guardar.",
+    "help_food_place": "Leva o feixe até à água.",
+    "food_unsuitable": "Este feixe é pequeno. Escolhe outro.",
+    "food_complete": "A comida está guardada!",
+    "winter_arrived": "O inverno chegou! A família do castor está reunida.",
 }
 
 

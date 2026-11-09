@@ -6,6 +6,8 @@
 
 Visual production in this milestone: use the provisional volumes from the [environment](3d-environment.md) and prepare the references and actions for the [characters](3d-characters.md). After this play, validate the provisional dam in 3a. Only in 3b produce and integrate the first animated beaver and the stretch of the valley with the chosen finish.
 
+**Planning status:** Closed for sequencing at the author's request; work is proceeding to 3a. This is not a claim that the remaining checks below were performed: the child session, complete hands-on PC/Android path, voice listening, camera comparison and device/art decisions remain open and must be revisited.
+
 ## Learning needed
 
 Detect the object or point in the world under the touch/click; calculate a walkable path; represent simple states such as "free", "carrying" and "placed"; give a visual and sound response to the action.
@@ -32,7 +34,8 @@ These are proposed files and checks, not a new interaction system already implem
 - [x] Prepare three visible changes in the water, one per placement. Do not physically simulate the river.
 - [x] Prepare the [script per event and the provisional voice](../audio.md) before testing with the child. Five pt-PT WAV cues and serialized event playback are integrated; pronunciation, volume and visual pairing still need PC and Android listening checks. Text can support, but must not be necessary.
 - [x] Prepare a restart of the experiment for the adult, without confusing the child's controls. A long press on the title reveals a confirmation-protected adult control; Ctrl+R is also available on desktop.
-- [ ] Test the complete path on the PC and on Android beforehand.
+- [x] Manually collect the branches on the POCO: the user reported no problems.
+- [ ] Test the complete path on the PC and on Android beforehand, including placement and listening to the voice.
 - [ ] Invite her to play for a few minutes, trying both devices at comfortable moments.
 - [ ] Adjust the main point of confusion and observe again only as much as needed.
 - [ ] Record the choice of the priority device and whether camera and interaction serve as a basis for the dam.

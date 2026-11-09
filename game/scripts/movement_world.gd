@@ -5,25 +5,55 @@ const Shapes = preload("res://scripts/prototype_shapes.gd")
 const Actor = preload("res://scripts/prototype_actor.gd")
 const BranchScene = preload("res://scenes/collectible_branch.tscn")
 const VoiceScript = preload("res://scripts/provisional_voice.gd")
+const VisualEnvironmentScript = preload("res://scripts/visual_environment.gd")
+const SupportCharactersScript = preload("res://scripts/support_characters.gd")
+const SfxScript = preload("res://scripts/provisional_sfx.gd")
+const HomeStageScript = preload("res://scripts/home_stage.gd")
+const FoodStageScript = preload("res://scripts/food_stage.gd")
+const WinterSceneScript = preload("res://scripts/winter_scene.gd")
+const DamSave = preload("res://scripts/dam_save.gd")
 const ASSET_TEST_FLAG: String = "user://open-asset-test"
+const CAMERA_FOLLOW_OFFSET := Vector3(11, 14, 15)
+const CAMERA_FOLLOW_SPEED: float = 4.0
+const DAM_BRANCH_COUNT: int = 3
+const BRANCH_IDS: Array[String] = ["branch_thick_01", "branch_rotten_01", "branch_normal_01", "branch_normal_02", "branch_normal_03"]
 var actor: CharacterBody3D
 var camera: Camera3D
+var camera_follow_enabled: bool = false
 var navigation := AStarGrid2D.new()
 var destination: MeshInstance3D
 var status: Label
 var click_pending: bool = false
 var click_position := Vector2.ZERO
-var branches: Array[Node3D] = []
-var pending_branch: Node3D
-var carried_branch: Node3D
+var branches: Array[CollectibleBranch] = []
+var pending_branch: CollectibleBranch
+var carried_branch: CollectibleBranch
 var placement_pending: bool = false
 var placed_count: int = 0
 var placement_center := Vector3(2.5, 0.0, -4.4)
 var water_surface: MeshInstance3D
+var visual_environment: VisualEnvironment
+var support_characters: Node3D
 var placement_area: Area3D
 var branch_cues: Array[MeshInstance3D] = []
 var placement_cue: MeshInstance3D
+var finish_trim: MeshInstance3D
 var completion_feedback: Label
+var home_completion_feedback: Label
+var home_invite: Label
+var home_stage: HomeStage
+var food_stage: FoodStage
+var winter_scene: WinterScene
+var winter_active: bool = false
+var food_progress: Label
+var food_completion_feedback: Label
+var ending_overlay: ColorRect
+var ending_title: Label
+var ending_message: Label
+var continue_button: Button
+var ending_new_adventure_button: Button
+var winter_new_adventure_button: Button
+var finish_prompt: Label
 var celebration_sparkles: Array[MeshInstance3D] = []
 var adult_restart_button: Button
 var title_control: Label
@@ -31,6 +61,16 @@ var title_hold_started: float = -1.0
 var title_touch_active: bool = false
 var restart_dialog: ConfirmationDialog
 var voice: Node
+var sfx: Node
+var gnaw_button: Button
+var help_button: Button
+var finish_choice_buttons: Dictionary = {}
+var finish_choice: String = ""
+var incompatible_place_attempts: int = 0
+var help_highlight_active: bool = false
+var placement_help_active: bool = false
+var save_directory: String = DamSave.DEFAULT_DIRECTORY
+var _save_failure_visible: bool = false
 
 
 func _ready() -> void:
@@ -41,6 +81,7 @@ func _ready() -> void:
 	if "--asset-test" in OS.get_cmdline_user_args() or flag_file:
 		get_tree().change_scene_to_file.call_deferred("res://scenes/asset_import_test.tscn")
 		return
+	camera_follow_enabled = "--camera-follow" in OS.get_cmdline_user_args()
 	navigation.region = Rect2i(-6, -5, 13, 11)
 	navigation.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
 	navigation.update()
@@ -49,9 +90,14 @@ func _ready() -> void:
 	var ground := Shapes.solid_box(Vector3(13, 0.4, 11), Color("69967b"))
 	ground.position.y = -0.2
 	add_child(ground)
-	for branch_position in [Vector3(-4, 0, -3.5), Vector3(4, 0, 3.5), Vector3(-4, 0, 3.5)]:
-		var branch: Node3D = BranchScene.instantiate()
+	var branch_positions: Array[Vector3] = [Vector3(-4, 0, -3.5), Vector3(4, 0, 3.5), Vector3(-4, 0, 3.5), Vector3(-4, 0, 1.5), Vector3(4, 0, 0)]
+	var branch_kinds: Array[CollectibleBranch.Kind] = [CollectibleBranch.Kind.THICK, CollectibleBranch.Kind.ROTTEN, CollectibleBranch.Kind.NORMAL, CollectibleBranch.Kind.NORMAL, CollectibleBranch.Kind.NORMAL]
+	var branch_ids: Array[String] = ["branch_thick_01", "branch_rotten_01", "branch_normal_01", "branch_normal_02", "branch_normal_03"]
+	for branch_index in range(branch_positions.size()):
+		var branch_position: Vector3 = branch_positions[branch_index]
+		var branch: CollectibleBranch = BranchScene.instantiate()
 		branch.position = branch_position
+		branch.configure_branch(branch_kinds[branch_index], branch_ids[branch_index])
 		add_child(branch)
 		branches.append(branch)
 		branch_cues.append(_add_ground_ring(branch_position, 0.78, Color("fff0a3")))
@@ -59,13 +105,22 @@ func _ready() -> void:
 	water_surface = Shapes.box(Vector3(13, 0.03, 0.8), Color("579fbd"))
 	water_surface.position = Vector3(0, 0.015, -5.15)
 	add_child(water_surface)
+	visual_environment = VisualEnvironmentScript.new() as VisualEnvironment
+	add_child(visual_environment)
+	visual_environment.bind_water_surface(water_surface)
+	support_characters = SupportCharactersScript.new()
+	add_child(support_characters)
 	var bank := Shapes.box(Vector3(13, 0.035, 0.35), Color("c6aa75"))
 	bank.position = Vector3(0, 0.018, -3.35)
 	add_child(bank)
 	_build_placement_target()
 	var rock := Shapes.solid_box(Vector3(0.8, 0.85, 4.8), Color("84949b"))
+	rock.name = "RockObstacle"
 	rock.position.y = 0.425
+	var rock_placeholder := rock.get_child(0) as MeshInstance3D
+	rock_placeholder.visible = false
 	add_child(rock)
+	visual_environment.add_rock_obstacle(Vector3.ZERO)
 	for side in [-1.0, 1.0]:
 		var wall_x := Shapes.solid_box(Vector3(0.3, 0.5, 11.6), Color("406451"))
 		wall_x.position = Vector3(side * 6.65, 0.25, 0)
@@ -76,6 +131,17 @@ func _ready() -> void:
 	actor = Actor.new()
 	actor.position = Vector3(-4, 0.05, 0)
 	add_child(actor)
+	home_stage = HomeStageScript.new()
+	home_stage.name = "HomeStage"
+	add_child(home_stage)
+	home_stage.bind(actor, navigation)
+	food_stage = FoodStageScript.new()
+	food_stage.name = "FoodStage"
+	add_child(food_stage)
+	food_stage.bind(actor, navigation)
+	winter_scene = WinterSceneScript.new()
+	winter_scene.name = "WinterScene"
+	add_child(winter_scene)
 	destination = MeshInstance3D.new()
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.24
@@ -88,7 +154,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	add_child(camera)
 	camera.position = Vector3(11, 14, 15)
-	camera.look_at(Vector3.ZERO)
+	camera.look_at(camera.position - CAMERA_FOLLOW_OFFSET)
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = 19.0
 	camera.current = true
@@ -109,9 +175,35 @@ func _ready() -> void:
 	voice = VoiceScript.new()
 	voice.name = "ProvisionalVoice"
 	add_child(voice)
+	sfx = SfxScript.new()
+	sfx.name = "ProvisionalSfx"
+	add_child(sfx)
+	home_stage.status_changed.connect(_on_stage_status)
+	home_stage.voice_requested.connect(voice.play_event)
+	home_stage.sound_requested.connect(sfx.play_event)
+	home_stage.completed.connect(_on_home_completed)
+	home_stage.part_placed.connect(_on_home_part_placed)
+	food_stage.status_changed.connect(_on_stage_status)
+	food_stage.voice_requested.connect(voice.play_event)
+	food_stage.sound_requested.connect(sfx.play_event)
+	food_stage.placed.connect(_on_food_placed)
+	food_stage.completed.connect(_on_food_completed)
+	food_stage.activated.connect(_on_food_activated)
+	var capture_mode := "--capture-home" in OS.get_cmdline_user_args() or "--capture-food" in OS.get_cmdline_user_args() or "--capture-ending" in OS.get_cmdline_user_args()
+	if capture_mode:
+		# Debug captures must never alter the player's chapter save.
+		save_directory = "user://capture_save/"
+		DamSave.clear_save(save_directory)
 	voice.play_event("dam_start")
+	_restore_dam_save()
 	_update_branch_cues()
-	if "--capture-movement" in OS.get_cmdline_user_args():
+	if "--capture-ending" in OS.get_cmdline_user_args():
+		_capture_ending()
+	elif "--capture-food" in OS.get_cmdline_user_args():
+		_capture_food()
+	elif "--capture-home" in OS.get_cmdline_user_args():
+		_capture_home()
+	elif "--capture-movement" in OS.get_cmdline_user_args():
 		_capture()
 
 
@@ -137,10 +229,17 @@ func _build_interface() -> void:
 	progress.add_theme_font_size_override("font_size", 28)
 	progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(progress)
+	food_progress = Label.new()
+	food_progress.name = "FoodProgress"
+	food_progress.position = Vector2(24, 88)
+	food_progress.add_theme_font_size_override("font_size", 28)
+	food_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	food_progress.visible = false
+	layer.add_child(food_progress)
 	completion_feedback = Label.new()
 	completion_feedback.name = "CompletionFeedback"
 	completion_feedback.text = "Fizeste uma represa!"
-	completion_feedback.position = Vector2(0, 155)
+	completion_feedback.position = Vector2(0, 515)
 	completion_feedback.size = Vector2(960, 80)
 	completion_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	completion_feedback.add_theme_font_size_override("font_size", 42)
@@ -148,6 +247,38 @@ func _build_interface() -> void:
 	completion_feedback.visible = false
 	completion_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(completion_feedback)
+	home_invite = Label.new()
+	home_invite.name = "HomeInvite"
+	home_invite.text = "Agora vamos construir a casa!"
+	home_invite.position = Vector2(0, 470)
+	home_invite.size = Vector2(960, 40)
+	home_invite.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	home_invite.add_theme_font_size_override("font_size", 24)
+	home_invite.visible = false
+	home_invite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(home_invite)
+	home_completion_feedback = Label.new()
+	home_completion_feedback.name = "HomeCompletionFeedback"
+	home_completion_feedback.text = "A casa está pronta!"
+	home_completion_feedback.position = Vector2(0, 515)
+	home_completion_feedback.size = Vector2(960, 70)
+	home_completion_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	home_completion_feedback.add_theme_font_size_override("font_size", 38)
+	home_completion_feedback.add_theme_color_override("font_color", Color("fff0a3"))
+	home_completion_feedback.visible = false
+	home_completion_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(home_completion_feedback)
+	food_completion_feedback = Label.new()
+	food_completion_feedback.name = "FoodCompletionFeedback"
+	food_completion_feedback.text = "A comida está guardada!"
+	food_completion_feedback.position = Vector2(0, 515)
+	food_completion_feedback.size = Vector2(960, 70)
+	food_completion_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	food_completion_feedback.add_theme_font_size_override("font_size", 38)
+	food_completion_feedback.add_theme_color_override("font_color", Color("fff0a3"))
+	food_completion_feedback.visible = false
+	food_completion_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(food_completion_feedback)
 	_build_celebration_sparkles()
 	adult_restart_button = Button.new()
 	adult_restart_button.text = "Recomeçar (adulto)"
@@ -155,19 +286,115 @@ func _build_interface() -> void:
 	adult_restart_button.visible = false
 	adult_restart_button.pressed.connect(_confirm_restart)
 	layer.add_child(adult_restart_button)
+	gnaw_button = Button.new()
+	gnaw_button.text = "Roer o ramo"
+	gnaw_button.position = Vector2(24, 132)
+	gnaw_button.visible = false
+	gnaw_button.pressed.connect(request_gnaw)
+	layer.add_child(gnaw_button)
+	help_button = Button.new()
+	help_button.name = "HelpButton"
+	help_button.text = "?"
+	help_button.tooltip_text = "Ajuda"
+	help_button.custom_minimum_size = Vector2(48, 48)
+	help_button.position = Vector2(660, 18)
+	help_button.add_theme_font_size_override("font_size", 26)
+	help_button.pressed.connect(request_help)
+	layer.add_child(help_button)
+	finish_prompt = Label.new()
+	finish_prompt.name = "FinishPrompt"
+	finish_prompt.text = "Escolhe o acabamento da represa:"
+	finish_prompt.position = Vector2(24, 270)
+	finish_prompt.visible = false
+	layer.add_child(finish_prompt)
+	for option in [["finish_golden", "Dourado", Color("d6a83e")], ["finish_moss", "Verde", Color("668b59")]]:
+		var finish_button := Button.new()
+		finish_button.text = option[1]
+		finish_button.toggle_mode = true
+		finish_button.position = Vector2(24 + finish_choice_buttons.size() * 126, 298)
+		finish_button.custom_minimum_size = Vector2(116, 44)
+		finish_button.visible = false
+		var choice_id: String = option[0]
+		finish_button.pressed.connect(func() -> void: select_finish_choice(choice_id))
+		layer.add_child(finish_button)
+		finish_choice_buttons[choice_id] = finish_button
+	winter_new_adventure_button = Button.new()
+	winter_new_adventure_button.name = "WinterNewAdventure"
+	winter_new_adventure_button.text = "Nova aventura"
+	winter_new_adventure_button.position = Vector2(700, 72)
+	winter_new_adventure_button.custom_minimum_size = Vector2(220, 36)
+	winter_new_adventure_button.add_theme_font_size_override("font_size", 16)
+	winter_new_adventure_button.visible = false
+	winter_new_adventure_button.pressed.connect(_confirm_restart)
+	layer.add_child(winter_new_adventure_button)
 	restart_dialog = ConfirmationDialog.new()
-	restart_dialog.title = "Recomeçar a experiência?"
-	restart_dialog.dialog_text = "Os ramos voltam ao início."
+	restart_dialog.title = "Começar uma nova aventura?"
+	restart_dialog.dialog_text = "A represa, a casa e a comida voltam ao início."
+	restart_dialog.min_size = Vector2i(520, 200)
+	restart_dialog.ok_button_text = "Começar de novo"
+	restart_dialog.cancel_button_text = "Cancelar"
 	restart_dialog.confirmed.connect(_restart_experiment)
 	layer.add_child(restart_dialog)
+	_build_ending_overlay(layer)
 	_update_progress_cue()
+
+
+func _build_ending_overlay(layer: CanvasLayer) -> void:
+	ending_overlay = ColorRect.new()
+	ending_overlay.name = "EndingOverlay"
+	ending_overlay.color = Color(0.04, 0.08, 0.09, 0.88)
+	ending_overlay.position = Vector2.ZERO
+	ending_overlay.size = Vector2(960, 600)
+	ending_overlay.visible = false
+	ending_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(ending_overlay)
+	var center := CenterContainer.new()
+	center.position = Vector2.ZERO
+	center.size = Vector2(960, 600)
+	ending_overlay.add_child(center)
+	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(720, 0)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 20)
+	center.add_child(box)
+	ending_title = Label.new()
+	ending_title.name = "EndingTitle"
+	ending_title.text = "O inverno chegou!"
+	ending_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ending_title.add_theme_font_size_override("font_size", 44)
+	ending_title.add_theme_color_override("font_color", Color("fff0a3"))
+	box.add_child(ending_title)
+	ending_message = Label.new()
+	ending_message.name = "EndingMessage"
+	ending_message.text = "A família do castor está reunida. A casa está quente e a comida está guardada."
+	ending_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ending_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ending_message.custom_minimum_size = Vector2(700, 0)
+	ending_message.add_theme_font_size_override("font_size", 24)
+	box.add_child(ending_message)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 24)
+	box.add_child(buttons)
+	continue_button = Button.new()
+	continue_button.text = "Continuar a visitar"
+	continue_button.custom_minimum_size = Vector2(260, 58)
+	continue_button.add_theme_font_size_override("font_size", 22)
+	continue_button.pressed.connect(_continue_visiting)
+	buttons.add_child(continue_button)
+	ending_new_adventure_button = Button.new()
+	ending_new_adventure_button.text = "Nova aventura"
+	ending_new_adventure_button.custom_minimum_size = Vector2(220, 58)
+	ending_new_adventure_button.add_theme_font_size_override("font_size", 22)
+	ending_new_adventure_button.pressed.connect(_confirm_restart)
+	buttons.add_child(ending_new_adventure_button)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R and event.ctrl_pressed:
 		_confirm_restart()
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		click_position = event.position
 		click_pending = true
 	elif event is InputEventScreenTouch and event.pressed:
@@ -183,40 +410,89 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if title_touch_active and title_hold_started >= 0.0 and Time.get_ticks_msec() / 1000.0 - title_hold_started >= 1.2:
-		_show_adult_restart()
+	_update_adult_restart_hold(Time.get_ticks_msec() / 1000.0)
 	if click_pending:
 		click_pending = false
 		_move_from_screen(click_position)
 	if pending_branch != null and actor.is_arrived():
 		if carried_branch != null and carried_branch != pending_branch:
 			carried_branch.return_to_origin(self)
+			carried_branch = null
 		carried_branch = pending_branch
+		var was_bent := carried_branch.bent
 		carried_branch.carry(actor)
+		var newly_bent := not was_bent and carried_branch.bent and carried_branch.kind == CollectibleBranch.Kind.ROTTEN
+		var carry_save_ok := true
+		if newly_bent:
+			carry_save_ok = _save_dam_state()
 		pending_branch = null
-		status.text = "O castor leva um ramo. Escolhe outro para o trocar."
-		voice.play_event("help_place")
+		sfx.play_event("collect")
+		incompatible_place_attempts = 0
+		help_highlight_active = false
+		status.text = _collection_comment(carried_branch)
+		if not carry_save_ok:
+			_show_save_failure()
+		_update_obstacle_controls()
+		if carried_branch.kind == CollectibleBranch.Kind.ROTTEN:
+			voice.play_event("rotten_branch")
+		elif carried_branch.kind == CollectibleBranch.Kind.THICK and not carried_branch.gnawed:
+			voice.play_event("thick_branch")
+		else:
+			voice.play_event("help_place")
 		_update_branch_cues()
 	if placement_pending and actor.is_arrived():
 		placement_pending = false
-		if carried_branch != null and placed_count < branches.size():
+		if carried_branch != null and placed_count < DAM_BRANCH_COUNT:
+			if not _carried_branch_is_suitable():
+				_update_branch_cues()
+				return
+			actor.play_place_action()
 			carried_branch.place(self, placement_center, placed_count)
 			carried_branch = null
+			_update_obstacle_controls()
 			placed_count += 1
+			sfx.play_event("complete" if placed_count == DAM_BRANCH_COUNT else "place")
+			var placement_save_ok := _save_dam_state()
+			incompatible_place_attempts = 0
+			help_highlight_active = false
 			_update_water()
 			if placed_count == 1:
 				voice.play_event("first_placement")
 			status.text = "Boa! A água está a mudar. Escolhe mais um ramo."
 			_update_branch_cues()
 			_update_progress_cue()
-			if placed_count == branches.size():
+			if placed_count == DAM_BRANCH_COUNT:
 				voice.play_event("dam_completed")
 				status.text = "A represa está completa!"
 				completion_feedback.visible = true
+				home_invite.visible = true
+				_update_finish_choices(true)
+				_cancel_pending_collection()
 				var pulse := create_tween()
 				pulse.tween_property(completion_feedback, "scale", Vector2(1.08, 1.08), 0.22).from(Vector2.ONE)
 				pulse.tween_property(completion_feedback, "scale", Vector2.ONE, 0.22)
 				_play_celebration()
+				home_stage.activate()
+				_update_branch_cues()
+			if not placement_save_ok:
+				_show_save_failure()
+
+
+func _process(delta: float) -> void:
+	if camera_follow_enabled and actor != null and camera != null:
+		_update_follow_camera(delta)
+
+
+func _update_follow_camera(delta: float) -> void:
+	var target := actor.global_position + Vector3.UP * 0.35
+	var desired_position := target + CAMERA_FOLLOW_OFFSET
+	var blend := 1.0 - exp(-CAMERA_FOLLOW_SPEED * delta)
+	camera.global_position = camera.global_position.lerp(desired_position, blend)
+
+
+func _update_adult_restart_hold(now_seconds: float) -> void:
+	if title_touch_active and title_hold_started >= 0.0 and now_seconds - title_hold_started >= 1.2:
+		_show_adult_restart()
 
 
 func _move_from_screen(screen_position: Vector2) -> bool:
@@ -227,12 +503,73 @@ func _move_from_screen(screen_position: Vector2) -> bool:
 	branch_query.collide_with_areas = true
 	var branch_hit := get_world_3d().direct_space_state.intersect_ray(branch_query)
 	if not branch_hit.is_empty():
-		var selected := branch_hit.collider.get_parent() as Node3D
+		var selected := branch_hit.collider.get_parent() as CollectibleBranch
+		if home_stage != null:
+			home_stage.cancel_pending()
+			home_stage.return_carried()
+		if food_stage != null:
+			food_stage.cancel_pending()
+			food_stage.return_carried()
 		return request_collect(selected)
+	var home_part_query := PhysicsRayQueryParameters3D.create(origin, end, HomeStage.PART_LAYER)
+	home_part_query.collide_with_areas = true
+	var home_part_hit := get_world_3d().direct_space_state.intersect_ray(home_part_query)
+	if not home_part_hit.is_empty():
+		var home_part := home_part_hit.collider.get_parent() as HomePart
+		if home_part != null:
+			_cancel_pending_collection()
+			placement_pending = false
+			if food_stage != null:
+				food_stage.cancel_pending()
+			if carried_branch != null:
+				carried_branch.return_to_origin(self)
+				carried_branch = null
+				_update_branch_cues()
+			return home_stage.request_collect(home_part)
+	var food_bundle_query := PhysicsRayQueryParameters3D.create(origin, end, FoodStage.BUNDLE_LAYER)
+	food_bundle_query.collide_with_areas = true
+	var food_bundle_hit := get_world_3d().direct_space_state.intersect_ray(food_bundle_query)
+	if not food_bundle_hit.is_empty():
+		var food_bundle := food_bundle_hit.collider.get_parent() as FoodBundle
+		if food_bundle != null:
+			_cancel_pending_collection()
+			placement_pending = false
+			if home_stage != null:
+				home_stage.cancel_pending()
+			if carried_branch != null:
+				carried_branch.return_to_origin(self)
+				carried_branch = null
+				_update_branch_cues()
+			return food_stage.request_collect(food_bundle)
 	var target_query := PhysicsRayQueryParameters3D.create(origin, end, 8)
 	target_query.collide_with_areas = true
 	if not get_world_3d().direct_space_state.intersect_ray(target_query).is_empty():
+		if home_stage != null:
+			home_stage.cancel_pending()
+		if food_stage != null:
+			food_stage.cancel_pending()
 		return request_place()
+	var home_slot_query := PhysicsRayQueryParameters3D.create(origin, end, HomeStage.SLOT_LAYER)
+	home_slot_query.collide_with_areas = true
+	var home_slot_hit := get_world_3d().direct_space_state.intersect_ray(home_slot_query)
+	if not home_slot_hit.is_empty():
+		var slot_index := home_stage.resolve_slot_at(screen_position, camera)
+		if slot_index < 0:
+			slot_index = int(home_slot_hit.collider.get_meta("home_slot_index", -1))
+		if slot_index >= 0:
+			_cancel_pending_collection()
+			placement_pending = false
+			if food_stage != null:
+				food_stage.cancel_pending()
+			return home_stage.request_place(slot_index)
+	var food_target_query := PhysicsRayQueryParameters3D.create(origin, end, FoodStage.TARGET_LAYER)
+	food_target_query.collide_with_areas = true
+	if not get_world_3d().direct_space_state.intersect_ray(food_target_query).is_empty():
+		_cancel_pending_collection()
+		placement_pending = false
+		if home_stage != null:
+			home_stage.cancel_pending()
+		return food_stage.request_place()
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty() or hit.position.y > 0.1:
 		status.text = "Escolhe um sítio livre no chão."
@@ -240,9 +577,17 @@ func _move_from_screen(screen_position: Vector2) -> bool:
 	return request_move(hit.position)
 
 
-func request_collect(branch: Node3D) -> bool:
+func request_collect(branch: CollectibleBranch) -> bool:
 	if not branches.has(branch):
 		return false
+	if home_stage != null and home_stage.is_active:
+		status.text = "A represa está pronta. Vamos construir a casa!"
+		return false
+	if home_stage != null:
+		home_stage.cancel_pending()
+		home_stage.return_carried()
+	help_highlight_active = false
+	placement_help_active = false
 	placement_pending = false
 	if branch == carried_branch:
 		if pending_branch != null:
@@ -314,7 +659,13 @@ func request_move(world_position: Vector3) -> bool:
 	for cell in path:
 		points.append(Vector3(cell.x, 0, cell.y))
 	_cancel_pending_collection()
+	if home_stage != null:
+		home_stage.cancel_pending()
+	if food_stage != null:
+		food_stage.cancel_pending()
 	placement_pending = false
+	help_highlight_active = false
+	placement_help_active = false
 	voice.cancel()
 	actor.follow_path(points)
 	destination.position = Vector3(target.x, 0.04, target.y)
@@ -324,10 +675,18 @@ func request_move(world_position: Vector3) -> bool:
 
 
 func _build_placement_target() -> void:
-	var marker := Shapes.box(Vector3(3.2, 0.04, 1.35), Color("e8c66a"))
-	marker.position = placement_center + Vector3(0, 0.025, 0)
-	add_child(marker)
 	placement_cue = _add_ground_ring(placement_center, 1.15, Color("ffe17d"))
+	var finish_mesh := BoxMesh.new()
+	finish_mesh.size = Vector3(3.0, 0.08, 0.14)
+	var finish_material := StandardMaterial3D.new()
+	finish_material.albedo_color = Color("d6a83e")
+	finish_mesh.material = finish_material
+	finish_trim = MeshInstance3D.new()
+	finish_trim.name = "DamFinishTrim"
+	finish_trim.mesh = finish_mesh
+	finish_trim.position = placement_center + Vector3(0, 0.38, 0.38)
+	finish_trim.visible = false
+	add_child(finish_trim)
 	placement_area = Area3D.new()
 	placement_area.collision_layer = 8
 	placement_area.collision_mask = 0
@@ -343,12 +702,29 @@ func _build_placement_target() -> void:
 func request_place() -> bool:
 	if placement_pending:
 		return true
-	if placed_count >= branches.size():
+	if placed_count >= DAM_BRANCH_COUNT:
 		status.text = "A represa está completa!"
 		return false
+	if home_stage != null:
+		home_stage.cancel_pending()
+	if food_stage != null:
+		food_stage.cancel_pending()
 	if carried_branch == null:
 		status.text = "Toca no ramo e depois na zona amarela."
 		voice.play_event("help_collect")
+		return false
+	if not _carried_branch_is_suitable():
+		incompatible_place_attempts += 1
+		if carried_branch.kind == CollectibleBranch.Kind.THICK:
+			status.text = "Este ramo é grosso. Roê-o primeiro ou escolhe outro."
+		else:
+			status.text = "Este ramo está podre e dobra. Escolhe outro ramo."
+		if incompatible_place_attempts >= 2:
+			status.text = "Ajuda: escolhe o ramo marcado a verde."
+			help_highlight_active = true
+			support_characters.show_hint()
+			voice.play_event("help_compatible")
+			_update_branch_cues()
 		return false
 	var start := Vector2i(roundi(actor.position.x), roundi(actor.position.z))
 	var candidates: Array[Vector2i] = [Vector2i(2, -4), Vector2i(3, -4), Vector2i(2, -3), Vector2i(3, -3)]
@@ -369,6 +745,9 @@ func request_place() -> bool:
 		voice.cancel()
 		actor.follow_path(points)
 		placement_pending = true
+		incompatible_place_attempts = 0
+		help_highlight_active = false
+		placement_help_active = false
 		destination.position = Vector3(cell.x, 0.04, cell.y)
 		destination.visible = true
 		status.text = "O castor vai colocar o ramo."
@@ -385,6 +764,216 @@ func _update_water() -> void:
 	water_mesh.size.z = depths[mini(placed_count, 3)]
 	water_surface.position.z = -5.55 + depths[mini(placed_count, 3)] * 0.5
 	(water_mesh.material as StandardMaterial3D).albedo_color = colors[mini(placed_count, 3)]
+	if visual_environment != null:
+		visual_environment.set_water_state(water_mesh.size.z, -5.55)
+		visual_environment.set_dam_state(placed_count, finish_choice)
+
+
+func _save_dam_state() -> bool:
+	var placed: Array[String] = []
+	var gnawed: Array[String] = []
+	var bent: Array[String] = []
+	var placed_branches: Array[CollectibleBranch] = []
+	for branch in branches:
+		if branch.gnawed:
+			gnawed.append(branch.stable_id)
+		if branch.bent:
+			bent.append(branch.stable_id)
+		if branch.state == CollectibleBranch.State.PLACED:
+			placed_branches.append(branch)
+	placed_branches.sort_custom(func(a: CollectibleBranch, b: CollectibleBranch) -> bool: return a.position.x < b.position.x)
+	for branch in placed_branches:
+		placed.append(branch.stable_id)
+	var solved: Array[String] = []
+	if not gnawed.is_empty():
+		solved.append("branch_thick_01")
+	if not bent.is_empty():
+		solved.append("branch_rotten_01")
+	var state := DamSave.empty_state()
+	state["placed_materials"] = placed
+	state["solved_obstacles"] = solved
+	state["gnawed_materials"] = gnawed
+	state["bent_materials"] = bent
+	state["finish_choice"] = finish_choice
+	state["stage_completed"] = placed.size() == DAM_BRANCH_COUNT
+	var home_slots: Array[String] = ["", ""]
+	for index in range(2):
+		var part := home_stage.part_at_slot(index)
+		if part != null:
+			home_slots[index] = part.stable_id
+	state["home_slots"] = home_slots
+	state["food_placements"] = food_stage.get_placed_bundle_ids()
+	var saved := DamSave.save_state(state, save_directory)
+	if not saved:
+		push_warning("Failed to save dam progress.")
+	else:
+		_save_failure_visible = false
+	return saved
+
+
+func _show_save_failure() -> void:
+	_save_failure_visible = true
+	status.text = "Não foi possível guardar o progresso. Pede ajuda a um adulto."
+
+
+func _set_status(text: String) -> void:
+	if _save_failure_visible:
+		return
+	status.text = text
+
+
+func _on_stage_status(text: String) -> void:
+	_set_status(text)
+
+
+func _on_home_completed() -> void:
+	completion_feedback.visible = false
+	home_invite.visible = false
+	home_completion_feedback.position = Vector2(0, 515)
+	home_completion_feedback.visible = true
+	var pulse := create_tween()
+	pulse.tween_property(home_completion_feedback, "scale", Vector2(1.08, 1.08), 0.22).from(Vector2.ONE)
+	pulse.tween_property(home_completion_feedback, "scale", Vector2.ONE, 0.22)
+	food_stage.activate()
+
+
+func _on_home_part_placed(_count: int) -> void:
+	if not _save_dam_state():
+		_show_save_failure()
+
+
+func _on_food_activated() -> void:
+	get_node("CanvasLayer/DamProgress").visible = false
+	food_progress.visible = true
+	_update_food_progress()
+	home_invite.text = "Agora vamos guardar comida para o inverno!"
+	home_invite.visible = true
+
+
+func _on_food_placed(_count: int) -> void:
+	_update_food_progress()
+	if not _save_dam_state():
+		_show_save_failure()
+
+
+func _update_food_progress() -> void:
+	if food_progress == null or food_stage == null:
+		return
+	var symbols := "●".repeat(food_stage.placed_count) + "○".repeat(FoodStage.REQUIRED_COUNT - food_stage.placed_count)
+	food_progress.text = "Comida guardada: " + symbols
+
+
+func _on_food_completed() -> void:
+	home_completion_feedback.visible = false
+	home_invite.visible = false
+	food_completion_feedback.position = Vector2(0, 515)
+	food_completion_feedback.visible = true
+	var pulse := create_tween()
+	pulse.tween_property(food_completion_feedback, "scale", Vector2(1.08, 1.08), 0.22).from(Vector2.ONE)
+	pulse.tween_property(food_completion_feedback, "scale", Vector2.ONE, 0.22)
+	await get_tree().create_timer(1.2).timeout
+	if is_inside_tree() and food_stage.is_complete() and not winter_active:
+		_show_winter(true)
+
+
+func _show_winter(show_overlay: bool) -> void:
+	winter_active = true
+	winter_scene.set_winter(true)
+	completion_feedback.visible = false
+	home_completion_feedback.visible = false
+	food_completion_feedback.visible = false
+	home_invite.visible = false
+	get_node("CanvasLayer/DamProgress").visible = false
+	food_progress.visible = true
+	_update_food_progress()
+	_update_finish_choices(false)
+	winter_new_adventure_button.visible = true
+	_set_status("O inverno chegou! A família do castor está reunida.")
+	if show_overlay and not ending_overlay.visible:
+		ending_overlay.visible = true
+		voice.play_event("winter_arrived")
+
+
+func _continue_visiting() -> void:
+	ending_overlay.visible = false
+	_set_status("Podes visitar o vale. A família está em casa.")
+
+
+func _restore_dam_save() -> void:
+	var result := DamSave.load_state(save_directory)
+	var state: Dictionary = result["state"]
+	var by_id: Dictionary = {}
+	for branch in branches:
+		by_id[branch.stable_id] = branch
+		branch.return_to_origin(self)
+		branch.gnawed = false
+		branch.bent = false
+		if branch.kind == CollectibleBranch.Kind.THICK:
+			branch._set_color(Color("9b653b"))
+		elif branch.kind == CollectibleBranch.Kind.ROTTEN:
+			branch._set_color(Color("6f7950"))
+	for material_id: String in state["gnawed_materials"]:
+		var gnawed_branch: CollectibleBranch = by_id.get(material_id)
+		if gnawed_branch != null:
+			gnawed_branch.gnaw()
+	for material_id: String in state["bent_materials"]:
+		var bent_branch: CollectibleBranch = by_id.get(material_id)
+		if bent_branch != null:
+			bent_branch.bent = true
+			bent_branch.rotation.z = deg_to_rad(18.0)
+	placed_count = 0
+	for material_id: String in state["placed_materials"]:
+		var placed_branch: CollectibleBranch = by_id.get(material_id)
+		if placed_branch == null:
+			continue
+		placed_branch.place(self, placement_center, placed_count)
+		placed_count += 1
+	actor.position = Vector3(-4, 0.05, 0)
+	actor.follow_path(PackedVector3Array())
+	carried_branch = null
+	pending_branch = null
+	placement_pending = false
+	_update_water()
+	_update_progress_cue()
+	finish_choice = state["finish_choice"]
+	_update_finish_choices(state["stage_completed"])
+	completion_feedback.visible = false
+	home_completion_feedback.visible = false
+	food_completion_feedback.visible = false
+	if not state["stage_completed"]:
+		home_invite.visible = false
+		food_progress.visible = false
+		get_node("CanvasLayer/DamProgress").visible = true
+		status.text = "Clica no chão para andar. O castor contorna a rocha."
+		return
+	for sparkle in celebration_sparkles:
+		sparkle.visible = true
+	home_stage.activate()
+	home_stage.restore_slots(state["home_slots"])
+	_update_branch_cues()
+	if not home_stage.is_complete():
+		completion_feedback.visible = true
+		home_invite.text = "Agora vamos construir a casa!"
+		home_invite.visible = true
+		food_progress.visible = false
+		get_node("CanvasLayer/DamProgress").visible = true
+		status.text = "Agora vamos construir a casa! Escolhe uma peça."
+		voice.play_event("home_invite")
+		return
+	completion_feedback.visible = false
+	home_invite.visible = false
+	get_node("CanvasLayer/DamProgress").visible = false
+	food_stage.activate_silent()
+	food_stage.restore_placements(state["food_placements"])
+	food_progress.visible = true
+	_update_food_progress()
+	if food_stage.is_complete():
+		_show_winter(false)
+	else:
+		home_invite.text = "Agora vamos guardar comida para o inverno!"
+		home_invite.visible = true
+		status.text = "Agora vamos guardar comida para o inverno! Escolhe um feixe."
+		voice.play_event("food_invite")
 
 
 func _add_ground_ring(at: Vector3, radius: float, color: Color) -> MeshInstance3D:
@@ -400,21 +989,164 @@ func _add_ground_ring(at: Vector3, radius: float, color: Color) -> MeshInstance3
 
 
 func _update_branch_cues() -> void:
+	var home_active: bool = home_stage != null and home_stage.is_active
 	for index in range(branches.size()):
 		var cue := branch_cues[index]
 		var available: bool = branches[index].state == 0 or branches[index].state == 1
-		cue.visible = available
+		cue.visible = available and not home_active
+		branches[index].visible = not (home_active and available)
+		if available and not home_active:
+			branches[index].hit_area.collision_layer = 4
+		elif branches[index].state == 0 or branches[index].state == 1:
+			branches[index].hit_area.collision_layer = 0
 		if branches[index] == pending_branch:
 			cue.scale = Vector3.ONE * 1.22
 			(cue.mesh as TorusMesh).material.albedo_color = Color("ffca45")
 		else:
 			cue.scale = Vector3.ONE
 			(cue.mesh as TorusMesh).material.albedo_color = Color("fff0a3")
+		if help_highlight_active and branches[index] != carried_branch and branches[index].state == branches[index].State.FREE and _is_suitable_material(branches[index]):
+			(cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1")
+	if placement_cue != null:
+		(placement_cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1") if placement_help_active else Color("ffe17d")
+
+
+func _is_suitable_material(branch: CollectibleBranch) -> bool:
+	if branch.kind == CollectibleBranch.Kind.ROTTEN:
+		return false
+	return branch.kind != CollectibleBranch.Kind.THICK or branch.gnawed
+
+
+func _carried_branch_is_suitable() -> bool:
+	return carried_branch != null and _is_suitable_material(carried_branch)
+
+
+func _collection_comment(branch: CollectibleBranch) -> String:
+	if branch.kind == CollectibleBranch.Kind.ROTTEN:
+		return "O ramo podre dobra! Vamos escolher outro."
+	if branch.kind == CollectibleBranch.Kind.THICK and not branch.gnawed:
+		return "Este ramo é grosso. Podes roê-lo ou escolher outro."
+	return "O castor leva um ramo. Escolhe outro para o trocar."
+
+
+func _update_obstacle_controls() -> void:
+	gnaw_button.visible = carried_branch != null and carried_branch.kind == CollectibleBranch.Kind.THICK and not carried_branch.gnawed
+	gnaw_button.modulate = Color.WHITE
+
+
+func request_gnaw() -> bool:
+	if carried_branch == null or carried_branch.kind != CollectibleBranch.Kind.THICK or carried_branch.gnawed:
+		return false
+	actor.play_gnaw_action()
+	carried_branch.gnaw()
+	sfx.play_event("gnaw")
+	var save_ok := _save_dam_state()
+	incompatible_place_attempts = 0
+	help_highlight_active = false
+	gnaw_button.visible = false
+	status.text = "O ramo ficou pronto para a represa!"
+	if not save_ok:
+		_show_save_failure()
+	_update_branch_cues()
+	return true
+
+
+func request_help() -> bool:
+	support_characters.show_hint()
+	if winter_active:
+		status.text = "O inverno chegou! Podes visitar o vale ou começar uma nova aventura."
+		return true
+	if home_stage != null and home_stage.is_active and not home_stage.is_complete():
+		return home_stage.request_help()
+	if food_stage != null and food_stage.is_active and not food_stage.is_complete():
+		return food_stage.request_help()
+	if placed_count >= DAM_BRANCH_COUNT:
+		status.text = "Podes mudar o acabamento da represa nos botões abaixo."
+		return true
+	if pending_branch != null and carried_branch == null:
+		status.text = "O castor vai buscar o ramo. Podes esperar ou escolher outro."
+		voice.play_event("help_collect")
+		return true
+	if carried_branch == null:
+		status.text = "Escolhe um ramo verde para levar até à represa."
+		help_highlight_active = true
+		placement_help_active = false
+		voice.play_event("help_collect")
+		_update_branch_cues()
+		return true
+	if carried_branch.kind == CollectibleBranch.Kind.THICK and not carried_branch.gnawed:
+		if incompatible_place_attempts >= 2:
+			status.text = "Ajuda: escolhe o ramo marcado a verde."
+			help_highlight_active = true
+			placement_help_active = false
+			voice.play_event("help_compatible")
+		else:
+			status.text = "Este ramo é grosso. Podes roê-lo ou escolher outro."
+			gnaw_button.modulate = Color("fff0a3")
+			var pulse := create_tween()
+			pulse.tween_property(gnaw_button, "scale", Vector2(1.08, 1.08), 0.12).from(Vector2.ONE)
+			pulse.tween_property(gnaw_button, "scale", Vector2.ONE, 0.12)
+			voice.play_event("thick_branch")
+		_update_branch_cues()
+		return true
+	if carried_branch.kind == CollectibleBranch.Kind.ROTTEN:
+		if incompatible_place_attempts >= 2:
+			status.text = "Ajuda: escolhe o ramo marcado a verde."
+			help_highlight_active = true
+			voice.play_event("help_compatible")
+		else:
+			status.text = "O ramo podre dobrou! Escolhe outro ramo."
+			help_highlight_active = true
+			voice.play_event("rotten_branch")
+		placement_help_active = false
+		_update_branch_cues()
+		return true
+	status.text = "Leva o ramo até à zona amarela da represa."
+	help_highlight_active = false
+	placement_help_active = true
+	voice.play_event("help_place")
+	_update_branch_cues()
+	return true
+
+
+func select_finish_choice(choice_id: String) -> bool:
+	if placed_count != DAM_BRANCH_COUNT or not finish_choice_buttons.has(choice_id):
+		return false
+	finish_choice = choice_id
+	_apply_finish_choice()
+	_update_finish_choices(true)
+	var save_ok := _save_dam_state()
+	if not save_ok:
+		_show_save_failure()
+	return true
+
+
+func _apply_finish_choice() -> void:
+	if visual_environment != null:
+		visual_environment.set_dam_state(placed_count, finish_choice)
+	if finish_trim == null:
+		return
+	finish_trim.visible = not finish_choice.is_empty()
+	if finish_choice == "finish_golden":
+		(finish_trim.mesh as BoxMesh).material.albedo_color = Color("d6a83e")
+	elif finish_choice == "finish_moss":
+		(finish_trim.mesh as BoxMesh).material.albedo_color = Color("668b59")
+
+
+func _update_finish_choices(is_complete: bool) -> void:
+	if finish_prompt == null:
+		return
+	finish_prompt.visible = is_complete
+	for choice_id: String in finish_choice_buttons:
+		var finish_button: Button = finish_choice_buttons[choice_id]
+		finish_button.visible = is_complete
+		finish_button.button_pressed = choice_id == finish_choice
+	_apply_finish_choice()
 
 
 func _update_progress_cue() -> void:
 	var progress: Label = get_node("CanvasLayer/DamProgress")
-	var symbols := "●".repeat(placed_count) + "○".repeat(branches.size() - placed_count)
+	var symbols := "●".repeat(placed_count) + "○".repeat(DAM_BRANCH_COUNT - placed_count)
 	progress.text = "Ramos na represa: " + symbols
 
 
@@ -437,6 +1169,7 @@ func _build_celebration_sparkles() -> void:
 
 
 func _play_celebration() -> void:
+	support_characters.celebrate()
 	for index in range(celebration_sparkles.size()):
 		var sparkle := celebration_sparkles[index]
 		sparkle.position = placement_center + Vector3((index - 2) * 0.48, 0.55, 0.0)
@@ -460,7 +1193,14 @@ func _show_adult_restart() -> void:
 
 
 func _restart_experiment() -> void:
+	if not _clear_progress_for_restart():
+		_show_save_failure()
+		return
 	get_tree().reload_current_scene()
+
+
+func _clear_progress_for_restart() -> bool:
+	return DamSave.clear_save(save_directory)
 
 
 func _capture() -> void:
@@ -481,3 +1221,111 @@ func _capture() -> void:
 	if error == OK:
 		print("CASTOR_GRAPHICS_OK mouse_movement_capture")
 	get_tree().quit(0 if error == OK else 1)
+
+
+func _capture_home() -> void:
+	await get_tree().create_timer(0.4).timeout
+	# The home is only reachable after the dam, so the capture shows the full lake.
+	placed_count = DAM_BRANCH_COUNT
+	_update_water()
+	_update_progress_cue()
+	home_stage.activate()
+	_update_branch_cues()
+	home_invite.visible = true
+	home_invite.text = "Agora vamos construir a casa!"
+	status.text = "Agora vamos construir a casa! Escolhe uma peça."
+	await RenderingServer.frame_post_draw
+	var initial_error := get_viewport().get_texture().get_image().save_png("user://home.png")
+	await _capture_build_home()
+	await RenderingServer.frame_post_draw
+	var completed_error := get_viewport().get_texture().get_image().save_png("user://home_complete.png")
+	var success := initial_error == OK and completed_error == OK
+	if success:
+		print("CASTOR_GRAPHICS_OK home_capture")
+	get_tree().quit(0 if success else 1)
+
+
+func _capture_build_home() -> void:
+	var first_part := home_stage.parts[0]
+	home_stage.request_collect(first_part)
+	await _wait_for_capture(func() -> bool: return home_stage.carried_part == first_part)
+	home_stage.request_place(0)
+	await _wait_for_capture(func() -> bool: return home_stage.placed_slot_count >= 1)
+	var second_part := home_stage.parts[1]
+	home_stage.request_collect(second_part)
+	await _wait_for_capture(func() -> bool: return home_stage.carried_part == second_part)
+	home_stage.request_place(1)
+	await _wait_for_capture(func() -> bool: return home_stage.placed_slot_count == 2)
+
+
+func _capture_food() -> void:
+	await get_tree().create_timer(0.4).timeout
+	placed_count = DAM_BRANCH_COUNT
+	_update_water()
+	_update_progress_cue()
+	home_stage.activate()
+	_update_branch_cues()
+	await _capture_build_home()
+	home_invite.text = "Agora vamos guardar comida para o inverno!"
+	home_invite.visible = true
+	status.text = "Agora vamos guardar comida para o inverno! Escolhe um feixe."
+	await RenderingServer.frame_post_draw
+	var initial_error := get_viewport().get_texture().get_image().save_png("user://food.png")
+	for _index in range(FoodStage.REQUIRED_COUNT):
+		var bundle := _capture_first_suitable_food_bundle()
+		if bundle == null:
+			break
+		food_stage.request_collect(bundle)
+		await _wait_for_capture(func() -> bool: return food_stage.carried_bundle == bundle)
+		food_stage.request_place()
+		var expected_count: int = food_stage.placed_count + 1
+		await _wait_for_capture(func() -> bool: return food_stage.placed_count == expected_count)
+	await RenderingServer.frame_post_draw
+	var completed_error := get_viewport().get_texture().get_image().save_png("user://food_complete.png")
+	var success := initial_error == OK and completed_error == OK and food_stage.is_complete()
+	if success:
+		print("CASTOR_GRAPHICS_OK food_capture")
+	get_tree().quit(0 if success else 1)
+
+
+func _capture_ending() -> void:
+	await get_tree().create_timer(0.4).timeout
+	placed_count = DAM_BRANCH_COUNT
+	_update_water()
+	_update_progress_cue()
+	home_stage.activate()
+	_update_branch_cues()
+	await _capture_build_home()
+	for _index in range(FoodStage.REQUIRED_COUNT):
+		var bundle := _capture_first_suitable_food_bundle()
+		if bundle == null:
+			break
+		food_stage.request_collect(bundle)
+		await _wait_for_capture(func() -> bool: return food_stage.carried_bundle == bundle)
+		food_stage.request_place()
+		var expected_count: int = food_stage.placed_count + 1
+		await _wait_for_capture(func() -> bool: return food_stage.placed_count == expected_count)
+	await _wait_for_capture(func() -> bool: return ending_overlay.visible)
+	await RenderingServer.frame_post_draw
+	var overlay_error := get_viewport().get_texture().get_image().save_png("user://ending.png")
+	_continue_visiting()
+	await RenderingServer.frame_post_draw
+	var valley_error := get_viewport().get_texture().get_image().save_png("user://ending_valley.png")
+	var success := overlay_error == OK and valley_error == OK and winter_active
+	if success:
+		print("CASTOR_GRAPHICS_OK ending_capture")
+	get_tree().quit(0 if success else 1)
+
+
+func _capture_first_suitable_food_bundle() -> FoodBundle:
+	for bundle in food_stage.bundles:
+		if bundle.state <= FoodBundle.State.RESERVED and food_stage.is_bundle_suitable(bundle):
+			return bundle
+	return null
+
+
+func _wait_for_capture(condition: Callable) -> void:
+	for _frame in range(360):
+		if condition.call():
+			return
+		await get_tree().process_frame

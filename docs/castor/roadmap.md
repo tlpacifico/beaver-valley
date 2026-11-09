@@ -1,6 +1,6 @@
 # Castor — MVP roadmap
 
-Status: milestone 1 complete. Godot 4.7.2 and GDScript retained; movement and test assets were validated on Windows and the POCO X7. The renamed Android build was reinstalled and checked on the POCO. Milestone 2 is next; priority device and origin of the final models remain open. Milestone 2 has a provisional bank, water and building marker; there is no collecting/building yet. See [how to run](how-to-run.md).
+Status: milestone 1 complete. Godot 4.7.2 and GDScript retained; movement and test assets were validated on Windows and the POCO X7. The renamed Android build was reinstalled and checked on the POCO. The author requested closing milestone 3b for sequencing after a short POCO device check. Milestone 4 is functionally complete through the winter ending and protected new adventure; child/device validation, final art and MVP polish remain. The 3a/3b human playtests, voice listening, 15-minute performance rehearsal and priority-device choice remain open. See [how to run](how-to-run.md).
 
 ## Goal
 
@@ -39,13 +39,13 @@ Detail the first milestones and review the following ones in light of the tests.
 | Milestone | Playable result | Condition to advance | Status |
 |---|---|---|---|
 | [1. First steps](roadmaps/01-first-steps.md) | Simple scene opened outside the editor, on the PC and on Android. | Viable export and engine chosen based on experience. | Complete: movement and test assets validated on Windows and POCO X7; startup reproduction and next increment recorded |
-| [2. First play](roadmaps/02-first-play.md) | Collect and place three branches to form a small dam. | Your daughter understands the interaction; priority device chosen. | In progress: provisional area prepared; branch interaction remains |
-| [3a. Playable dam](roadmaps/03a-playable-dam.md) | Complete stage with provisional shapes, obstacles, help, personalization and saving. | She can finish and resume the dam without getting stuck before the visual production. | Not started |
-| [3b. Dam with visual presentation](roadmaps/03b-visual-dam.md) | Animated beaver and stretch of the valley integrated into the validated experience. | Readable art, interactions preserved and performance observed on the device. | Not started |
-| [4. Chapter](roadmaps/04-chapter.md) | Dam, home, food and ending connected by the story. | Complete path, including returning to the valley and recovering progress. | Not started |
+| [2. First play](roadmaps/02-first-play.md) | Collect and place three branches to form a small dam. | Your daughter understands the interaction; priority device chosen. | Closed for sequencing by author; outstanding human checks remain open |
+| [3a. Playable dam](roadmaps/03a-playable-dam.md) | Complete stage with provisional shapes, obstacles, help, personalization and saving. | She can finish and resume the dam without getting stuck before the visual production. | In progress |
+| [3b. Dam with visual presentation](roadmaps/03b-visual-dam.md) | Animated beaver and stretch of the valley integrated into the validated experience. | Readable art, interactions preserved and performance observed on the device. | Closed for sequencing by author; full validation and outstanding checks remain open |
+| [4. Chapter](roadmaps/04-chapter.md) | Dam, home, food and ending connected by the story. | Complete path, including returning to the valley and recovering progress. | Implemented through the winter ending and protected new adventure; child/device validation and final art pending |
 | [5. MVP](roadmaps/05-mvp.md) | Chapter presented and adjusted for her to play on the chosen device. | Delivery criteria below verified on an installed build. | Not started |
 
-Sequence: 1 → 2 → 3a → 3b → 4 → 5. "Milestone 3" refers to the 3a + 3b set in the vision documents. Learning, provisional voice and observation accompany the milestones; they are not isolated phases at the end. The technical path for animations is tested in milestone 1 with a test asset; the finish of the game's characters comes in after validating the play.
+Original sequence: 1 → 2 → 3a → 3b → 4 → 5. The author requested moving to 3a while unperformed milestone 2 checks remain open. "Milestone 3" refers to the 3a + 3b set in the vision documents. Learning, provisional voice and observation accompany the milestones; they are not isolated phases at the end. The technical path for animations is tested in milestone 1 with a test asset; the finish of the game's characters comes in after validating the play.
 
 ## 3D production across the milestones
 
@@ -98,6 +98,6 @@ If the work grows, reduce variety of materials, decoration, size of the valley a
 | Script per event and origin of the provisional voice | Milestone 2, before the test with your daughter |
 | Other devices or public release | After the family MVP |
 
-Next action: begin the first scoped increment in [milestone 2](roadmaps/02-first-play.md).
+Next action: play the complete path with the child on the PC and, when available, the phone; then move to milestone 5 for presentation, final art/voice and device validation. Carry forward the outstanding 3a/3b checks.
 
 External review: see [assessment and handling of the suggestions](roadmap-review.md). The adjustments preserve the three stages of the MVP and do not choose an engine, final style or art supplier.

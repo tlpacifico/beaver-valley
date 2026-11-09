@@ -1,9 +1,13 @@
 extends CharacterBody3D
 
-const Shapes = preload("res://scripts/prototype_shapes.gd")
+const BeaverScene = preload("res://assets/characters/beaver/Beaver.glb")
 const SPEED: float = 2.8
 var waypoints: PackedVector3Array = []
 var visual: Node3D
+var beaver_model: Node3D
+var animation_player: AnimationPlayer
+var current_animation: StringName = &""
+var action_tween: Tween
 
 
 func _ready() -> void:
@@ -17,23 +21,21 @@ func _ready() -> void:
 	collision.position.y = 0.45
 	add_child(collision)
 	visual = Node3D.new()
+	visual.name = "Visual"
+	# Blender's -Y forward becomes +Z in the Y-up glTF export, while the actor
+	# rotates with Godot's -Z forward. Turn the visible model so its nose follows
+	# the body direction; action tweens stay on beaver_model and keep their axes.
+	visual.rotation.y = PI
 	add_child(visual)
-	_add_ellipsoid(Vector3(0.0, 0.52, 0.08), Vector3(0.39, 0.42, 0.62), Color("a9632d"))
-	_add_ellipsoid(Vector3(0.0, 0.75, -0.52), Vector3(0.32, 0.3, 0.34), Color("c98236"))
-	_add_ellipsoid(Vector3(0.0, 0.61, -0.81), Vector3(0.25, 0.17, 0.31), Color("e0ad76"))
-	# Broad, flattened paddle makes the beaver silhouette recognizable from the game camera.
-	_add_ellipsoid(Vector3(0.0, 0.16, 0.78), Vector3(0.34, 0.09, 0.48), Color("49372f"))
-	_add_ellipsoid(Vector3(0.0, 0.19, 0.58), Vector3(0.19, 0.11, 0.22), Color("765038"))
-	for side in [-1.0, 1.0]:
-		_add_ellipsoid(Vector3(side * 0.23, 1.0, -0.55), Vector3(0.13, 0.14, 0.13), Color("765038"))
-		_add_ellipsoid(Vector3(side * 0.19, 0.82, -0.78), Vector3(0.045, 0.055, 0.04), Color("282522"))
-		var tooth := Shapes.box(Vector3(0.075, 0.12, 0.045), Color("fff0d2"))
-		tooth.position = Vector3(side * 0.075, 0.47, -1.035)
-		visual.add_child(tooth)
-		_add_ellipsoid(Vector3(side * 0.25, 0.25, -0.04), Vector3(0.16, 0.13, 0.2), Color("8a4f2d"))
-	_add_ellipsoid(Vector3(0.0, 0.68, -1.07), Vector3(0.11, 0.075, 0.09), Color("392b27"))
-	# A light muzzle bridge keeps the nose and front teeth readable at the fixed camera distance.
-	_add_ellipsoid(Vector3(0.0, 0.56, -0.94), Vector3(0.17, 0.12, 0.19), Color("e7bd8e"))
+	beaver_model = BeaverScene.instantiate() as Node3D
+	beaver_model.name = "BeaverModel"
+	visual.add_child(beaver_model)
+	animation_player = _find_animation_player(beaver_model)
+	if animation_player != null:
+		for animation_name: StringName in [&"Idle", &"Walk"]:
+			if animation_player.has_animation(animation_name):
+				animation_player.get_animation(animation_name).loop_mode = Animation.LOOP_LINEAR
+	_play_animation(&"Idle")
 
 
 func follow_path(path: PackedVector3Array) -> void:
@@ -54,12 +56,17 @@ func _physics_process(delta: float) -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
 	if not waypoints.is_empty():
+		_cancel_action()
 		var offset := waypoints[0] - position
 		offset.y = 0.0
 		var movement := offset.normalized() * minf(SPEED, offset.length() / delta)
 		velocity.x = movement.x
 		velocity.z = movement.z
-		visual.rotation.y = atan2(-movement.x, -movement.z)
+		# Rotate the body so carried branches inherit the same facing direction as the model.
+		rotation.y = atan2(-movement.x, -movement.z)
+		_play_animation(&"Walk")
+	else:
+		_play_animation(&"Idle")
 	if is_on_floor():
 		velocity.y = 0.0
 	else:
@@ -67,14 +74,59 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 
-func _add_ellipsoid(center: Vector3, radii: Vector3, color: Color) -> MeshInstance3D:
-	var result := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.5
-	mesh.height = 1.0
-	mesh.material = Shapes.material(color)
-	result.mesh = mesh
-	result.position = center
-	result.scale = radii * 2.0
-	visual.add_child(result)
-	return result
+func play_gnaw_action() -> void:
+	_start_action(-0.24, 0.0)
+	if action_tween == null:
+		return
+	action_tween.tween_property(beaver_model, "rotation:x", -0.12, 0.11).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	action_tween.tween_property(beaver_model, "rotation:x", -0.27, 0.10).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	action_tween.tween_property(beaver_model, "rotation:x", 0.0, 0.24).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+func play_place_action() -> void:
+	_start_action(-0.12, -0.08)
+	if action_tween == null:
+		return
+	action_tween.tween_property(beaver_model, "position:y", -0.08, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	action_tween.parallel().tween_property(beaver_model, "rotation:x", -0.18, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	action_tween.tween_property(beaver_model, "position:y", 0.0, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	action_tween.parallel().tween_property(beaver_model, "rotation:x", 0.0, 0.30).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+func _start_action(start_pitch: float, start_height: float) -> void:
+	_cancel_action()
+	if beaver_model == null or not is_inside_tree():
+		return
+	beaver_model.rotation = Vector3(0.0, 0.0, 0.0)
+	beaver_model.position.y = start_height
+	action_tween = create_tween()
+	if start_pitch != 0.0:
+		action_tween.tween_property(beaver_model, "rotation:x", start_pitch, 0.10).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+func _cancel_action() -> void:
+	if action_tween != null and action_tween.is_running():
+		action_tween.kill()
+	if beaver_model != null:
+		beaver_model.rotation = Vector3.ZERO
+		beaver_model.position.y = 0.0
+	action_tween = null
+
+
+
+func _find_animation_player(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node as AnimationPlayer
+	for child in node.get_children():
+		var found := _find_animation_player(child)
+		if found != null:
+			return found
+	return null
+
+
+func _play_animation(animation_name: StringName) -> void:
+	if animation_player == null or current_animation == animation_name:
+		return
+	if animation_player.has_animation(animation_name):
+		animation_player.play(animation_name, 0.18)
+		current_animation = animation_name

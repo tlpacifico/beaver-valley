@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('editor', 'run', 'cube', 'assets', 'check', 'export-windows', 'export-android', 'branch-export')]
+    [ValidateSet('editor', 'run', 'follow', 'cube', 'assets', 'check', 'export-windows', 'export-android', 'branch-export')]
     [string]$Action = 'run'
 )
 
@@ -18,6 +18,7 @@ switch ($Action) {
         & $godotConsole --path $gamePath --editor
     }
     'run' { & $godotConsole --path $gamePath }
+    'follow' { & $godotConsole --path $gamePath -- --camera-follow }
     'cube' { & $godotConsole --path $gamePath res://scenes/bootstrap.tscn }
     'assets' { & $godotConsole --path $gamePath res://scenes/asset_import_test.tscn }
     'check' {
@@ -27,6 +28,20 @@ switch ($Action) {
         if ($LASTEXITCODE -ne 0) { throw 'The cube test failed.' }
         & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/movement_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The movement test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/dam_save_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The dam save test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/home_stage_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The home stage test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/food_stage_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The food stage test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/ending_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The ending test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/support_characters_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The support character test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/visual_environment_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The visual environment test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/beaver_actor_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The beaver actor test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/asset_import_test.gd
     }
     'export-windows' {
