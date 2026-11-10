@@ -15,6 +15,11 @@ var _hint_time_remaining: float = 0.0
 var _hint_is_timed: bool = false
 
 
+func configure(terrain: ValleyTerrain, _layout: ValleyLayout) -> void:
+	owl_position = Vector3(5.0, terrain.height_at(Vector2(5.0, 1.2)) + 0.38, 1.2)
+	otter_position = Vector3(-1.8, terrain.initial_water_level() + 0.05, -4.4)
+
+
 func _ready() -> void:
 	_owl = _build_owl()
 	_owl.position = owl_position

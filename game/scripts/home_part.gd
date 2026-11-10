@@ -22,7 +22,7 @@ func _ready() -> void:
 	hit_area.collision_mask = 0
 	var collision := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(1.35, 0.55, 1.05)
+	box.size = Vector3(1.1, 0.5, 0.9)
 	collision.shape = box
 	collision.position.y = 0.15
 	hit_area.add_child(collision)

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('editor', 'run', 'follow', 'cube', 'assets', 'check', 'export-windows', 'export-android', 'branch-export')]
+    [ValidateSet('editor', 'run', 'follow', 'cube', 'assets', 'relief', 'relief-capture', 'traversal', 'traversal-capture', 'check', 'export-windows', 'export-android', 'branch-export')]
     [string]$Action = 'run'
 )
 
@@ -21,6 +21,10 @@ switch ($Action) {
     'follow' { & $godotConsole --path $gamePath -- --camera-follow }
     'cube' { & $godotConsole --path $gamePath res://scenes/bootstrap.tscn }
     'assets' { & $godotConsole --path $gamePath res://scenes/asset_import_test.tscn }
+    'relief' { & $godotConsole --path $gamePath res://scenes/valley_relief_preview.tscn }
+    'relief-capture' { & $godotConsole --path $gamePath res://scenes/valley_relief_preview.tscn -- --capture-relief }
+    'traversal' { & $godotConsole --path $gamePath res://scenes/valley_traversal_preview.tscn }
+    'traversal-capture' { & $godotConsole --path $gamePath res://scenes/valley_traversal_preview.tscn -- --capture-traversal }
     'check' {
         & $godotConsole --headless --path $gamePath --import
         if ($LASTEXITCODE -ne 0) { throw 'The project resources failed to import.' }
@@ -28,6 +32,16 @@ switch ($Action) {
         if ($LASTEXITCODE -ne 0) { throw 'The cube test failed.' }
         & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/movement_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The movement test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/valley_terrain_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The valley terrain test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/valley_collision_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The valley collision test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/valley_navigation_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The valley navigation test failed.' }
+        & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/valley_traversal_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The valley traversal test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/valley_preview_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The valley preview test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/dam_save_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The dam save test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/home_stage_test.gd

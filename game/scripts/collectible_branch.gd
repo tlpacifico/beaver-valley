@@ -24,7 +24,7 @@ func _ready() -> void:
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	# The collider covers the visible selection ring, so tapping its edge still selects the branch.
-	shape.size = Vector3(1.65, 0.4, 1.65)
+	shape.size = Vector3(1.25, 0.4, 1.25)
 	collision.shape = shape
 	collision.position.y = 0.15
 	hit_area.add_child(collision)

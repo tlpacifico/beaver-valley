@@ -84,10 +84,48 @@ func _run() -> void:
 	_expect(home.has_method("get_lodge_center"), "The home stage does not expose its lodge position.")
 	if home.has_method("get_lodge_center"):
 		var lodge_center: Vector3 = home.call("get_lodge_center")
-		_expect(lodge_center.z < -3.6, "The lodge is not inside the lake.")
-		_expect(home.has_node("LodgeMound") and home.get_node("LodgeMound").visible, "The lodge has no visible mound in the lake.")
+		_expect(lodge_center.z < -3.0, "The lodge is not on the rear side of the valley.")
+		_expect(world.terrain.is_water_footprint(Vector2(lodge_center.x, lodge_center.z)), "The lodge is not in the lake/river footprint.")
+		_expect(home.has_node("LodgeWindow") and not home.get_node("LodgeWindow").visible, "The lodge window is visible before completion.")
+		_expect(home.has_node("LodgeMound") and home.get_node("LodgeMound").visible, "The lodge has no visible stick mound in the water.")
+		var lodge_floor := home.get_node_or_null("LodgeFloor") as MeshInstance3D
+		var entrance := home.get_node_or_null("LodgeEntrance") as MeshInstance3D
+		_expect(lodge_floor != null and lodge_floor.mesh is BoxMesh, "The lodge floor mesh is missing.")
+		_expect(entrance != null and entrance.mesh is BoxMesh, "The submerged lodge entrance is missing.")
+		if lodge_floor != null and lodge_floor.mesh is BoxMesh:
+			var floor_mesh := lodge_floor.mesh as BoxMesh
+			var floor_top: float = lodge_floor.global_position.y + floor_mesh.size.y * 0.5
+			var maximum_bed_height := -INF
+			# Sample the whole lodge floor footprint at a 0.2 m interval. The floor
+			# may touch the authored bed, but should not be hidden beneath it.
+			var x_samples: int = maxi(1, ceili(floor_mesh.size.x / 0.2))
+			var z_samples: int = maxi(1, ceili(floor_mesh.size.z / 0.2))
+			for x_step in range(x_samples + 1):
+				for z_step in range(z_samples + 1):
+					var x_offset: float = -floor_mesh.size.x * 0.5 + floor_mesh.size.x * float(x_step) / float(x_samples)
+					var z_offset: float = -floor_mesh.size.z * 0.5 + floor_mesh.size.z * float(z_step) / float(z_samples)
+					var sample_xz := Vector2(lodge_floor.global_position.x + x_offset, lodge_floor.global_position.z + z_offset)
+					var bed_height: float = world.terrain.height_at(sample_xz)
+					maximum_bed_height = maxf(maximum_bed_height, bed_height)
+			_expect(floor_top + 0.015 >= maximum_bed_height, "Lodge floor is buried across its footprint (floor %.3f, highest sampled bed %.3f)." % [floor_top, maximum_bed_height])
+			_expect(floor_top < world.terrain.initial_water_level(), "Lodge floor is not below the initial water surface.")
+		if entrance != null and entrance.mesh is BoxMesh:
+			var entrance_mesh := entrance.mesh as BoxMesh
+			var entrance_top: float = entrance.global_position.y + entrance_mesh.size.y * 0.5
+			_expect(entrance_top < world.terrain.initial_water_level(), "The lodge entrance is not fully submerged at the initial water level.")
 		_expect(home.call("get_slot_position", 0).z > lodge_center.z, "The wall position does not face the camera on the lake side.")
 		_expect(home.call("get_slot_position", 1).y > home.call("get_slot_position", 0).y, "The roof position is not above the wall position.")
+		for slot_index in range(2):
+			var approach: PackedVector3Array = home.call("_approach_lodge_path")
+			_expect(not approach.is_empty(), "No dry lodge approach resolves for home slot %d." % slot_index)
+			if not approach.is_empty():
+				var final_approach: Vector3 = approach[approach.size() - 1]
+				var dry_anchor: Vector3 = world.layout.anchor(&"lodge")
+				_expect(world.navigation.is_walkable(Vector2(final_approach.x, final_approach.z)) and final_approach.y > world.terrain.full_water_level() + 0.02, "Home slot %d approach does not finish on dry walkable ground." % slot_index)
+				_expect(Vector2(final_approach.x, final_approach.z).distance_to(Vector2(dry_anchor.x, dry_anchor.z)) <= 1.6, "Home slot %d approach ends too far from the dry lodge side." % slot_index)
+		var roof_position: Vector3 = home.call("get_slot_position", 1)
+		var roof_screen: Vector2 = world.camera.unproject_position(roof_position)
+		_expect(home.call("resolve_slot_at", roof_screen, world.camera) == 1, "Roof camera ray resolves to the wall slot or no slot.")
 	for part: Node in parts:
 		_expect(part.global_position.z > -3.4, "A loose home part is not on the bank.")
 	var viewport := Rect2(Vector2.ZERO, Vector2(960, 600))
@@ -132,9 +170,12 @@ func _run() -> void:
 	_expect(second_part.get("state") == 0 and second_part.get_parent() == home, "Swapping did not return the previous part to its origin.")
 	_expect(await _wait_for(func() -> bool: return home.get("carried_part") == third_part), "The swapped part was not carried after arrival.")
 
-	# Place the second part at the roof position to finish the lodge.
+	# Place the second part at the roof using the actual camera ray. This checks
+	# that the roof remains reachable even where the slot hit volumes overlap.
 	world.save_directory = "res://unsafe"
-	_expect(home.call("request_place", 1), "The roof position could not be selected with a carried part.")
+	var roof_screen: Vector2 = world.camera.unproject_position(home.call("get_slot_position", 1))
+	_expect(world._move_from_screen(roof_screen), "The roof position could not be selected through the camera ray.")
+	_expect(int(home.get("pending_slot")) == 1, "The camera ray selected the wall instead of the roof slot.")
 	_expect(await _wait_for(func() -> bool: return int(home.get("placed_slot_count")) == 2), "The second home part was not placed on arrival.")
 	_expect(bool(home.call("is_complete")), "The home did not complete with both positions filled.")
 	_expect(world.status.text == "Não foi possível guardar o progresso. Pede ajuda a um adulto.", "The home completion or food-stage transition hid a failed-save warning.")

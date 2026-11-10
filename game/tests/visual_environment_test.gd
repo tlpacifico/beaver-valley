@@ -2,6 +2,8 @@ extends SceneTree
 ## Focused checks for progressive dam scenery and finish selection.
 
 const EnvironmentScript = preload("res://scripts/visual_environment.gd")
+const TerrainScript = preload("res://scripts/valley_terrain.gd")
+const LayoutScript = preload("res://scripts/valley_layout.gd")
 var failures: int = 0
 
 
@@ -16,7 +18,12 @@ func _expect(condition: bool, description: String) -> void:
 
 
 func _run() -> void:
+	var terrain = TerrainScript.new()
+	terrain.configure(&"wide_bank")
+	var layout = LayoutScript.new()
+	layout.configure(terrain)
 	var environment := EnvironmentScript.new() as VisualEnvironment
+	environment.configure(terrain, layout)
 	root.add_child(environment)
 	await process_frame
 
@@ -38,6 +45,13 @@ func _run() -> void:
 	finish_material = (final_log.mesh as CylinderMesh).material as StandardMaterial3D
 	_expect(finish_material.albedo_color.is_equal_approx(Color("93663f")), "Unknown finish should retain natural timber color.")
 	_expect(environment.find_children("*", "CollisionObject3D", true, false).is_empty(), "Visual environment must not introduce collision bodies.")
+	_expect(environment.get_node_or_null("GoldenTree") != null, "Grounded scenery trees are missing.")
+	for child in environment.get_children():
+		if child.name != "GoldenTree":
+			continue
+		var tree_node := child as Node3D
+		var expected: float = terrain.height_at(Vector2(tree_node.position.x, tree_node.position.z))
+		_expect(absf(tree_node.position.y - expected) <= 0.05, "A scenery tree is not grounded (%.3f vs %.3f)." % [tree_node.position.y, expected])
 
 	if failures == 0:
 		print("CASTOR_VISUAL_ENVIRONMENT_OK")

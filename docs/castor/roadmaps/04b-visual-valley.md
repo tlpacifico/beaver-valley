@@ -18,7 +18,7 @@ Milestone 4 implemented the chapter's actions, saving and ending. The resulting 
 
 ## Relief direction update
 
-The author accepted the first tree integration but identified that the flat scene still reads as a board game. The [playable valley relief plan](../valley-relief-plan.md) now details V1/V2 and the related stage integration: enclosing hills, real traversable slopes, an excavated channel and a lake basin. The v3 map continues to guide palette and spatial relationships, but its flat raised slab is deliberately not the terrain target. Start with landform and slope traversal before producing more decoration.
+The author accepted the first tree integration but identified that the flat scene still reads as a board game. The [playable valley relief plan](../valley-relief-plan.md) now details V1/V2 and the related stage integration: enclosing hills, real traversable slopes, an excavated channel and a lake basin. The v3 map continues to guide palette and spatial relationships, but its flat raised slab is deliberately not the terrain target. The author accepted the `wide_bank` landform and perspective camera in R1 and the isolated slope traversal in R2 on 10 November 2026. The next step is R3: bring the accepted terrain, collision and navigation into the chapter, which is the V2 work below.
 
 ## Visual contract
 
@@ -31,7 +31,7 @@ The reference guides spatial relationships, palette, silhouettes and personality
 | Dam across the river | Branch placements visibly accumulate across the channel and explain why water collects upstream | Same-camera captures before, during and after building |
 | Lake behind the dam | Prepared water states expand upstream, keeping the downstream channel identifiable | Complete-dam capture and playable approach checks |
 | Woodland and bank zones | Branches belong to a recognizable collection area; decorative trees and rocks frame the routes | Collection and movement demonstration |
-| Lodge and food near the lake | A recognizable beaver lodge on a mound, with visible construction changes; food visibly stored in the water nearby | Home and food progress captures |
+| Lodge and food near the lake | A recognizable beaver lodge of sticks and mud in the water, with a submerged entrance, built only after the dam; food visibly cached underwater nearby | Home and food progress captures |
 | Beaver, owl and otter | Friendly, readable silhouettes and a consistent palette at the actual play distance | Character views in the full scene, not only close-ups |
 | Bright, simple presentation | Warm ground/vegetation, readable blue water, soft lighting and clear interactive targets | Captures on the actual game camera and installed build |
 
@@ -83,14 +83,16 @@ Follow R2–R4 of the [relief plan](../valley-relief-plan.md), including height-
 
 Depends on the V1 composition checkpoint.
 
-- [ ] Integrate terrain boundaries, river banks and the dam into the playable scene; remove or reposition prototype obstacles that conflict with the accepted geography while retaining useful movement challenges.
-- [ ] Build prepared initial, intermediate and complete water states. Show upstream accumulation caused by the dam; preserve the downstream channel and the chosen dam finish.
-- [ ] Update navigation, collision and approach points together. Keep reachable bank positions for collection, lodge assembly and food storage at every water level.
-- [ ] Update ray targets and selection cues to match the visible objects. Recheck taps near the bank, overlapping objects, the lodge roof and wall, and the screen edges.
-- [ ] Exercise movement retargeting and item swapping beside water and obstacles. Ensure the actor cannot be sent across unsupported water, become stranded by a water transition or clip through the terrain boundary.
-- [ ] Add or adapt targeted behavior tests for changed routes and real screen-ray selections; retain the existing movement and interaction checks.
+- [x] Integrate terrain boundaries, river banks and the dam into the playable scene; remove or reposition prototype obstacles that conflict with the accepted geography while retaining useful movement challenges. **R3 removed the flat ground, walls and central rock; no replacement obstacle was added yet.**
+- [ ] Build prepared initial, intermediate and complete water states. Show upstream accumulation caused by the dam; preserve the downstream channel and the chosen dam finish. **R3 swaps terrain water meshes at the three authored levels; R4 owns the visual water behaviour.**
+- [x] Update navigation, collision and approach points together. Keep reachable bank positions for collection, lodge assembly and food storage at every water level. **Initial and full water footprints both drive navigation solidity.**
+- [x] Update ray targets and selection cues to match the visible objects. Recheck taps near the bank, overlapping objects, the lodge roof and wall, and the screen edges.
+- [ ] Exercise movement retargeting and item swapping beside water and obstacles. Ensure the actor cannot be sent across unsupported water, become stranded by a water transition or clip through the terrain boundary. **Water refusal and retargeting are tested; swapping beside water and a water transition remain.**
+- [x] Add or adapt targeted behavior tests for changed routes and real screen-ray selections; retain the existing movement and interaction checks.
 
 **Deliverable:** the dam visibly changes a river into an upstream lake, with the entire chapter still traversable. A nice screenshot with broken routes does not satisfy this task.
+
+**R3 status:** the terrain chapter, routes, real-ray selection and grounded stage anchors are integrated and the full chapter passes its tests. R4 remains for the prepared water and winter presentation.
 
 ## V3 — Establish a coherent visual set
 

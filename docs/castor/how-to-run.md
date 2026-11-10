@@ -2,9 +2,9 @@
 
 ## What exists
 
-Standard Godot **4.7.2.stable.official.ed1daf0bf**, typed GDScript and the Compatibility renderer. The main scene has a placeholder character, ground, boundaries, a central rock and click-to-move movement. The original cube scene is still available separately, as is a 3D asset test scene (Blender branch and third-party animated model; see below). There is no collection, dam or final art yet.
+Standard Godot **4.7.2.stable.official.ed1daf0bf**, typed GDScript and the Compatibility renderer. The main scene is the playable valley with the complete dam → home → food → winter chapter, click/tap movement on the authored terrain and the accepted perspective camera. The original cube scene is still available separately, as is a 3D asset test scene (Blender branch and third-party animated model; see below). The look is provisional, not final art.
 
-Project: `game/project.godot`. Main scene: `game/scenes/movement.tscn`. Setting/input/path: `game/scripts/movement_world.gd`. Physics movement: `game/scripts/prototype_actor.gd`. Placeholder shapes: `game/scripts/prototype_shapes.gd`. Exports: `game/export_presets.cfg`. Cube preserved in `game/scenes/bootstrap.tscn`.
+Project: `game/project.godot`. Main scene: `game/scenes/movement.tscn`. World, chapter and input: `game/scripts/movement_world.gd`; terrain: `game/scripts/valley_terrain.gd`; anchors: `game/scripts/valley_layout.gd`; routing: `game/scripts/valley_navigation.gd`. Physics movement: `game/scripts/prototype_actor.gd`. Placeholder shapes: `game/scripts/prototype_shapes.gd`. Exports: `game/export_presets.cfg`. Cube preserved in `game/scenes/bootstrap.tscn`.
 
 ## Opening on the PC
 
@@ -12,18 +12,41 @@ At the repository root, in PowerShell:
 
 ```powershell
 ./tools/castor.ps1 run
-./tools/castor.ps1 follow
 ./tools/castor.ps1 editor
 ./tools/castor.ps1 cube
+./tools/castor.ps1 relief
+./tools/castor.ps1 relief-capture
+./tools/castor.ps1 traversal
+./tools/castor.ps1 traversal-capture
 ```
 
-Run one action at a time. You can also open `builds/windows/Castor.exe` directly, without the editor. Clicking a free spot on the ground makes the character walk to the yellow circle, going around the rock. Another valid click changes the destination; clicking the rock or outside the ground does not cancel the previous path. Closing the window ends the test. In the `cube` scene, the button pauses and resumes the rotation.
+Run one action at a time. You can also open `builds/windows/Castor.exe` directly, without the editor. Clicking a free spot on the bank makes the character walk to the yellow circle along the terrain; another valid click changes the destination. Water, the future lake footprint, steep banks and outside the valley are refused without cancelling the current path. Closing the window ends the test. In the `cube` scene, the button pauses and resumes the rotation.
 
-The placeholder path uses 1-meter cells: the destination snaps to the center of a cell and the turns are at right angles. The character has physical collision with the ground, rock and boundaries. The camera keeps the whole field framed; it does not need manual or automatic following yet. The look and the movement do not represent the final presentation.
+Movement uses the shared 0.5 m `AStarGrid2D`, lifted onto the same triangles as the visible terrain and collision. The character follows slopes with floor snapping, and the camera keeps the accepted perspective framing; manual camera control is not needed. The look and the movement do not represent final presentation.
 
-### Comparing the fixed-angle follow camera
+### Reviewing the valley relief (R1)
 
-Run `./tools/castor.ps1 follow` to try the camera-follow experiment. It keeps the current orthographic projection and viewing angle, smoothly tracking the beaver; `./tools/castor.ps1 run` always opens the original fixed camera. Close the game and launch the other command to compare. In follow mode, check whether the nearby branch and dam target remain easy to see and select as the beaver walks across the valley. The camera can move distant parts of the play area off-screen; this is an experiment, not a camera decision.
+```powershell
+./tools/castor.ps1 relief
+```
+
+Opens the isolated relief preview without touching the chapter scene or its save. Use `1`/`2`/`3` for the `gentle`, `pronounced` and `wide_bank` landforms, `O`/`P` for orthographic or narrow perspective, `W` for future routes, `B` for blocked slopes, `M` for the maximum lake footprint and `L` for a low-side diagnostic camera. Nothing in this scene has collision or navigation yet; it is a landform review.
+
+`./tools/castor.ps1 relief-capture` runs the same scene, writes labelled 960 × 600 and 540 × 960 captures plus `fit_report.json` to Godot's `user://relief/` folder and exits. Copy them to ignored `builds/relief/` for review. The focused checks are `game/tests/valley_terrain_test.gd` and `game/tests/valley_preview_test.gd`; run them with the Godot console and `--headless --path game --script res://tests/...`.
+
+### Reviewing slope traversal (R2)
+
+```powershell
+./tools/castor.ps1 traversal
+```
+
+Opens the isolated traversal preview on the accepted `wide_bank` terrain. Click or tap a spot on the bank; the beaver routes through the shared 0.5 m navigation and follows the collision surface. Water, the lake footprint, steep banks and outside terrain are refused with a message. The chapter scene is not touched.
+
+`./tools/castor.ps1 traversal-capture` walks spawn → dam → lodge → food → spawn, writes five captures to `user://relief/` and exits. The focused checks are `valley_collision_test.gd`, `valley_navigation_test.gd` and `valley_traversal_test.gd`.
+
+### Old follow-camera experiment
+
+The `follow` tool action predates the terrain chapter and is not part of the current review. The accepted fixed perspective camera is what `run` opens; do not use the old follow experiment to judge the valley.
 
 ## Restarting the first-play experiment
 
@@ -37,9 +60,9 @@ On PC, press Ctrl+R and confirm. On a touchscreen, hold the title for about 1.2 
 ./tools/castor.ps1 export-android
 ```
 
-The `check` command tests the cube, navigation (including the obstacle, redirection, projected mouse event and speed), the dam, isolated save recovery, the home and food stages, and static and animated asset imports. Success ends with `CASTOR_ASSETS_OK`. It does not validate real touch or understanding by the child.
+The `check` command tests the cube, the terrain chapter route (real ray selection, water/steep refusal, gnawing, dam, home, food and winter), isolated save recovery, the home and food stage details, and static and animated asset imports. Success ends with `CASTOR_ASSETS_OK`. It does not validate real touch or understanding by the child.
 
-For automatic graphical verification of the current executable, run `builds/windows/Castor.exe -- --capture-movement`; it sends a mouse event, checks that movement started, saves `movement.png` to Godot's user data folder and exits on its own. Run `builds/windows/Castor.exe -- --capture-home` to make the home stage available immediately, build it, and save `home.png` and `home_complete.png` to the same folder. Run `builds/windows/Castor.exe -- --capture-food` to build the home and the food store and save `food.png` and `food_complete.png`. Run `builds/windows/Castor.exe -- --capture-ending` to build the whole chapter and save `ending.png` and `ending_valley.png`. The capture modes use an isolated `user://capture_save/` and do not touch the normal chapter save. Do not pass those options for normal play. For the old cube test with the engine, use the explicit scene: `Godot_v4.7.2-stable_win64_console.exe --path game res://scenes/bootstrap.tscn -- --smoke-test`.
+For automatic graphical verification of the current executable, run `builds/windows/Castor.exe -- --capture-movement`; it sends a mouse event, checks that movement started, saves `movement.png` to Godot's user data folder and exits on its own. Run `builds/windows/Castor.exe -- --capture-initial` to capture the untouched chapter start with an isolated save. Run `builds/windows/Castor.exe -- --capture-home` to make the home stage available immediately, build it, and save `home.png` and `home_complete.png` to the same folder. Run `builds/windows/Castor.exe -- --capture-food` to build the home and the food store and save `food.png` and `food_complete.png`. Run `builds/windows/Castor.exe -- --capture-ending` to build the whole chapter and save `ending.png` and `ending_valley.png`. The capture modes use an isolated `user://capture_save/` and do not touch the normal chapter save. Do not pass those options for normal play. For the old cube test with the engine, use the explicit scene: `Godot_v4.7.2-stable_win64_console.exe --path game res://scenes/bootstrap.tscn -- --smoke-test`.
 
 The debug exports generate `builds/windows/Castor.exe` and `builds/android/castor-debug.apk`. `builds/` and caches stay out of Git. The script does not install tools if they are missing.
 

@@ -101,6 +101,6 @@ If the work grows, reduce variety of materials, decoration, size of the valley a
 | Script per event and origin of the provisional voice | Milestone 2, before the test with your daughter |
 | Other devices or public release | After the family MVP |
 
-Next action: start [milestone 4b](roadmaps/04b-visual-valley.md) with baseline captures and the [playable relief sample](valley-relief-plan.md): enclosing hills, an excavated channel, a lake basin and demonstrated uphill/downhill movement using simple volumes. Review that view with the author before detailed visual production. Continue short child/device checks throughout; proceed to milestone 5 only with an accepted, coherent valley and explicitly recorded validation status. Carry forward the outstanding 3a/3b/4 checks.
+Next action: R4 — make the prepared water states and winter presentation fit the basin on the integrated chapter, then validate the full valley, saves and installed build in R5. Continue short child/device checks throughout; proceed to milestone 5 only with an accepted, coherent valley and explicitly recorded validation status. Carry forward the outstanding 3a/3b/4 checks.
 
 External review: see [assessment and handling of the suggestions](roadmap-review.md). The adjustments preserve the three stages of the MVP and do not choose an engine, final style or art supplier.

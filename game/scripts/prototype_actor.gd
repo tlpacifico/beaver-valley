@@ -11,6 +11,12 @@ var action_tween: Tween
 
 
 func _ready() -> void:
+	# Follow the authored terrain: stay attached on descents, climb the route
+	# slopes at constant speed and keep the body upright rather than tilting it.
+	floor_snap_length = 0.35
+	floor_max_angle = deg_to_rad(40.0)
+	floor_constant_speed = true
+	floor_stop_on_slope = true
 	collision_layer = 2
 	collision_mask = 1
 	var collision := CollisionShape3D.new()

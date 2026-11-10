@@ -1,5 +1,6 @@
 extends Node3D
-## Flat placeholder valley. The grid guides the path; physics bodies prevent passing through.
+## Playable valley chapter on the accepted authored terrain. Visible ground,
+## collision, placement heights and routes all derive from ValleyTerrain.
 
 const Shapes = preload("res://scripts/prototype_shapes.gd")
 const Actor = preload("res://scripts/prototype_actor.gd")
@@ -12,15 +13,25 @@ const HomeStageScript = preload("res://scripts/home_stage.gd")
 const FoodStageScript = preload("res://scripts/food_stage.gd")
 const WinterSceneScript = preload("res://scripts/winter_scene.gd")
 const DamSave = preload("res://scripts/dam_save.gd")
+const TerrainScript = preload("res://scripts/valley_terrain.gd")
+const LayoutScript = preload("res://scripts/valley_layout.gd")
+const NavigationScript = preload("res://scripts/valley_navigation.gd")
 const ASSET_TEST_FLAG: String = "user://open-asset-test"
-const CAMERA_FOLLOW_OFFSET := Vector3(11, 14, 15)
+const CAMERA_POSITION := Vector3(9.5, 14.5, 13.0)
+const CAMERA_TARGET := Vector3(-1.5, 0.5, -2.0)
+const CAMERA_FOV := 36.0
+const CAMERA_FOLLOW_OFFSET := Vector3(9.5, 14.5, 13.0)
 const CAMERA_FOLLOW_SPEED: float = 4.0
 const DAM_BRANCH_COUNT: int = 3
 const BRANCH_IDS: Array[String] = ["branch_thick_01", "branch_rotten_01", "branch_normal_01", "branch_normal_02", "branch_normal_03"]
 var actor: CharacterBody3D
 var camera: Camera3D
 var camera_follow_enabled: bool = false
-var navigation := AStarGrid2D.new()
+var terrain: ValleyTerrain
+var layout: ValleyLayout
+var navigation: ValleyNavigation
+var terrain_mesh: MeshInstance3D
+var terrain_collision: StaticBody3D
 var destination: MeshInstance3D
 var status: Label
 var click_pending: bool = false
@@ -82,65 +93,59 @@ func _ready() -> void:
 		get_tree().change_scene_to_file.call_deferred("res://scenes/asset_import_test.tscn")
 		return
 	camera_follow_enabled = "--camera-follow" in OS.get_cmdline_user_args()
-	navigation.region = Rect2i(-6, -5, 13, 11)
-	navigation.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
-	navigation.update()
-	for z in range(-2, 3):
-		navigation.set_point_solid(Vector2i(0, z))
-	var ground := Shapes.solid_box(Vector3(13, 0.4, 11), Color("69967b"))
-	ground.position.y = -0.2
-	add_child(ground)
-	var branch_positions: Array[Vector3] = [Vector3(-4, 0, -3.5), Vector3(4, 0, 3.5), Vector3(-4, 0, 3.5), Vector3(-4, 0, 1.5), Vector3(4, 0, 0)]
+	terrain = TerrainScript.new()
+	terrain.configure(&"wide_bank")
+	layout = LayoutScript.new()
+	layout.configure(terrain)
+	placement_center = Vector3(terrain.river_center_x(terrain.dam_z()), terrain.initial_water_level(), terrain.dam_z())
+	navigation = NavigationScript.new()
+	navigation.configure(terrain)
+	terrain_mesh = MeshInstance3D.new()
+	terrain_mesh.name = "ValleyTerrainMesh"
+	terrain_mesh.mesh = terrain.terrain_mesh()
+	terrain_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	add_child(terrain_mesh)
+	terrain_collision = terrain.build_collision_body("ValleyCollision")
+	add_child(terrain_collision)
+	water_surface = MeshInstance3D.new()
+	water_surface.name = "ValleyWater"
+	water_surface.mesh = terrain.water_mesh(terrain.initial_water_level())
+	water_surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(water_surface)
+	var branch_spots: Array[Vector2] = [Vector2(3.2, 3.0), Vector2(0.8, 3.2), Vector2(2.6, 1.0), Vector2(0.2, 1.2), Vector2(4.2, 2.0)]
 	var branch_kinds: Array[CollectibleBranch.Kind] = [CollectibleBranch.Kind.THICK, CollectibleBranch.Kind.ROTTEN, CollectibleBranch.Kind.NORMAL, CollectibleBranch.Kind.NORMAL, CollectibleBranch.Kind.NORMAL]
-	var branch_ids: Array[String] = ["branch_thick_01", "branch_rotten_01", "branch_normal_01", "branch_normal_02", "branch_normal_03"]
-	for branch_index in range(branch_positions.size()):
-		var branch_position: Vector3 = branch_positions[branch_index]
+	for branch_index in range(branch_spots.size()):
+		var spot := branch_spots[branch_index]
+		var branch_position := Vector3(spot.x, terrain.height_at(spot) + 0.02, spot.y)
 		var branch: CollectibleBranch = BranchScene.instantiate()
 		branch.position = branch_position
-		branch.configure_branch(branch_kinds[branch_index], branch_ids[branch_index])
+		branch.configure_branch(branch_kinds[branch_index], BRANCH_IDS[branch_index])
 		add_child(branch)
 		branches.append(branch)
-		branch_cues.append(_add_ground_ring(branch_position, 0.78, Color("fff0a3")))
-	# Flat, non-colliding markers keep the existing walkable prototype intact.
-	water_surface = Shapes.box(Vector3(13, 0.03, 0.8), Color("579fbd"))
-	water_surface.position = Vector3(0, 0.015, -5.15)
-	add_child(water_surface)
+		branch_cues.append(_add_ground_ring(branch_position, 0.55, Color("fff0a3")))
 	visual_environment = VisualEnvironmentScript.new() as VisualEnvironment
+	visual_environment.configure(terrain, layout)
 	add_child(visual_environment)
-	visual_environment.bind_water_surface(water_surface)
 	support_characters = SupportCharactersScript.new()
+	support_characters.configure(terrain, layout)
 	add_child(support_characters)
-	var bank := Shapes.box(Vector3(13, 0.035, 0.35), Color("c6aa75"))
-	bank.position = Vector3(0, 0.018, -3.35)
-	add_child(bank)
 	_build_placement_target()
-	var rock := Shapes.solid_box(Vector3(0.8, 0.85, 4.8), Color("84949b"))
-	rock.name = "RockObstacle"
-	rock.position.y = 0.425
-	var rock_placeholder := rock.get_child(0) as MeshInstance3D
-	rock_placeholder.visible = false
-	add_child(rock)
-	visual_environment.add_rock_obstacle(Vector3.ZERO)
-	for side in [-1.0, 1.0]:
-		var wall_x := Shapes.solid_box(Vector3(0.3, 0.5, 11.6), Color("406451"))
-		wall_x.position = Vector3(side * 6.65, 0.25, 0)
-		add_child(wall_x)
-		var wall_z := Shapes.solid_box(Vector3(13, 0.5, 0.3), Color("406451"))
-		wall_z.position = Vector3(0, 0.25, side * 5.65)
-		add_child(wall_z)
 	actor = Actor.new()
-	actor.position = Vector3(-4, 0.05, 0)
+	actor.position = layout.anchor(&"spawn") + Vector3.UP * 0.05
 	add_child(actor)
 	home_stage = HomeStageScript.new()
 	home_stage.name = "HomeStage"
+	home_stage.configure(terrain, layout)
 	add_child(home_stage)
 	home_stage.bind(actor, navigation)
 	food_stage = FoodStageScript.new()
 	food_stage.name = "FoodStage"
+	food_stage.configure(terrain, layout)
 	add_child(food_stage)
 	food_stage.bind(actor, navigation)
 	winter_scene = WinterSceneScript.new()
 	winter_scene.name = "WinterScene"
+	winter_scene.configure(terrain, layout)
 	add_child(winter_scene)
 	destination = MeshInstance3D.new()
 	var ring := TorusMesh.new()
@@ -153,10 +158,10 @@ func _ready() -> void:
 	add_child(destination)
 	camera = Camera3D.new()
 	add_child(camera)
-	camera.position = Vector3(11, 14, 15)
-	camera.look_at(camera.position - CAMERA_FOLLOW_OFFSET)
-	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 19.0
+	camera.position = CAMERA_POSITION
+	camera.look_at(CAMERA_TARGET)
+	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	camera.fov = CAMERA_FOV
 	camera.current = true
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-60, -25, 0)
@@ -189,7 +194,7 @@ func _ready() -> void:
 	food_stage.placed.connect(_on_food_placed)
 	food_stage.completed.connect(_on_food_completed)
 	food_stage.activated.connect(_on_food_activated)
-	var capture_mode := "--capture-home" in OS.get_cmdline_user_args() or "--capture-food" in OS.get_cmdline_user_args() or "--capture-ending" in OS.get_cmdline_user_args()
+	var capture_mode := "--capture-initial" in OS.get_cmdline_user_args() or "--capture-home" in OS.get_cmdline_user_args() or "--capture-food" in OS.get_cmdline_user_args() or "--capture-ending" in OS.get_cmdline_user_args()
 	if capture_mode:
 		# Debug captures must never alter the player's chapter save.
 		save_directory = "user://capture_save/"
@@ -203,6 +208,8 @@ func _ready() -> void:
 		_capture_food()
 	elif "--capture-home" in OS.get_cmdline_user_args():
 		_capture_home()
+	elif "--capture-initial" in OS.get_cmdline_user_args():
+		_capture_initial()
 	elif "--capture-movement" in OS.get_cmdline_user_args():
 		_capture()
 
@@ -218,7 +225,7 @@ func _build_interface() -> void:
 	title_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(title_control)
 	status = Label.new()
-	status.text = "Clica no chão para andar. O castor contorna a rocha."
+	status.text = "Clica no chão para andar."
 	status.position = Vector2(24, 54)
 	status.add_theme_font_size_override("font_size", 17)
 	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -571,7 +578,7 @@ func _move_from_screen(screen_position: Vector2) -> bool:
 			home_stage.cancel_pending()
 		return food_stage.request_place()
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	if hit.is_empty() or hit.position.y > 0.1:
+	if hit.is_empty() or not navigation.is_walkable(Vector2(hit.position.x, hit.position.z)):
 		status.text = "Escolhe um sítio livre no chão."
 		return false
 	return request_move(hit.position)
@@ -603,36 +610,19 @@ func request_collect(branch: CollectibleBranch) -> bool:
 	if pending_branch != null and pending_branch != carried_branch:
 		pending_branch.cancel_reservation()
 		pending_branch = null
-	var start := Vector2i(roundi(actor.position.x), roundi(actor.position.z))
-	var candidates: Array[Vector2i] = [
-		Vector2i(roundi(branch.position.x) + 1, roundi(branch.position.z)),
-		Vector2i(roundi(branch.position.x) - 1, roundi(branch.position.z)),
-		Vector2i(roundi(branch.position.x), roundi(branch.position.z) + 1),
-		Vector2i(roundi(branch.position.x), roundi(branch.position.z) - 1),
-	]
-	candidates.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return a.distance_squared_to(start) < b.distance_squared_to(start)
-	)
-	for cell in candidates:
-		if not navigation.is_in_boundsv(cell) or navigation.is_point_solid(cell):
-			continue
-		var path := navigation.get_id_path(start, cell)
-		if path.is_empty():
-			continue
-		var points := PackedVector3Array()
-		for path_cell in path:
-			points.append(Vector3(path_cell.x, 0, path_cell.y))
-		actor.follow_path(points)
-		voice.cancel()
-		branch.reserve()
-		pending_branch = branch
-		destination.position = Vector3(cell.x, 0.04, cell.y)
-		destination.visible = true
-		status.text = "O castor vai buscar o ramo."
-		_update_branch_cues()
-		return true
-	status.text = "Esse ramo está longe demais para chegar."
-	return false
+	var path := navigation.find_approach(actor.global_position, Vector2(branch.position.x, branch.position.z), 3)
+	if path.is_empty():
+		status.text = "Esse ramo está longe demais para chegar."
+		return false
+	actor.follow_path(path)
+	voice.cancel()
+	branch.reserve()
+	pending_branch = branch
+	destination.position = path[path.size() - 1] + Vector3.UP * 0.04
+	destination.visible = true
+	status.text = "O castor vai buscar o ramo."
+	_update_branch_cues()
+	return true
 
 
 func _cancel_pending_collection() -> void:
@@ -646,18 +636,12 @@ func _cancel_pending_collection() -> void:
 func request_move(world_position: Vector3) -> bool:
 	if not world_position.is_finite():
 		return false
-	var target := Vector2i(roundi(world_position.x), roundi(world_position.z))
-	if not navigation.is_in_boundsv(target) or navigation.is_point_solid(target):
+	if not navigation.is_walkable(Vector2(world_position.x, world_position.z)):
 		status.text = "Escolhe um sítio livre no chão."
 		return false
-	var start := Vector2i(roundi(actor.position.x), roundi(actor.position.z))
-	var path := navigation.get_id_path(start, target)
+	var path := navigation.find_path(actor.global_position, world_position)
 	if path.is_empty():
 		return false
-	var points := PackedVector3Array()
-	# Returning to the current cell center avoids cutting through the rock when the target changes.
-	for cell in path:
-		points.append(Vector3(cell.x, 0, cell.y))
 	_cancel_pending_collection()
 	if home_stage != null:
 		home_stage.cancel_pending()
@@ -667,15 +651,16 @@ func request_move(world_position: Vector3) -> bool:
 	help_highlight_active = false
 	placement_help_active = false
 	voice.cancel()
-	actor.follow_path(points)
-	destination.position = Vector3(target.x, 0.04, target.y)
+	actor.follow_path(path)
+	destination.position = Vector3(world_position.x, terrain.height_at(Vector2(world_position.x, world_position.z)) + 0.04, world_position.z)
 	destination.visible = true
 	status.text = "O círculo amarelo mostra o destino. Podes escolher outro."
 	return true
 
 
 func _build_placement_target() -> void:
-	placement_cue = _add_ground_ring(placement_center, 1.15, Color("ffe17d"))
+	var bank_spot: Vector3 = layout.anchor(&"dam_approach")
+	placement_cue = _add_ground_ring(bank_spot, 0.9, Color("ffe17d"))
 	var finish_mesh := BoxMesh.new()
 	finish_mesh.size = Vector3(3.0, 0.08, 0.14)
 	var finish_material := StandardMaterial3D.new()
@@ -684,7 +669,7 @@ func _build_placement_target() -> void:
 	finish_trim = MeshInstance3D.new()
 	finish_trim.name = "DamFinishTrim"
 	finish_trim.mesh = finish_mesh
-	finish_trim.position = placement_center + Vector3(0, 0.38, 0.38)
+	finish_trim.position = placement_center + Vector3(0, 0.55, 0.0)
 	finish_trim.visible = false
 	add_child(finish_trim)
 	placement_area = Area3D.new()
@@ -692,9 +677,9 @@ func _build_placement_target() -> void:
 	placement_area.collision_mask = 0
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(3.2, 0.5, 1.35)
+	shape.size = Vector3(3.2, 1.0, 2.2)
 	collision.shape = shape
-	collision.position = placement_center
+	collision.position = bank_spot + Vector3.UP * 0.5
 	placement_area.add_child(collision)
 	add_child(placement_area)
 
@@ -726,46 +711,30 @@ func request_place() -> bool:
 			voice.play_event("help_compatible")
 			_update_branch_cues()
 		return false
-	var start := Vector2i(roundi(actor.position.x), roundi(actor.position.z))
-	var candidates: Array[Vector2i] = [Vector2i(2, -4), Vector2i(3, -4), Vector2i(2, -3), Vector2i(3, -3)]
-	candidates.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return a.distance_squared_to(start) < b.distance_squared_to(start)
-	)
-	for cell in candidates:
-		if navigation.is_point_solid(cell):
-			continue
-		var path := navigation.get_id_path(start, cell)
-		if path.is_empty():
-			continue
-		var points := PackedVector3Array()
-		for path_cell in path:
-			points.append(Vector3(path_cell.x, 0, path_cell.y))
-		# Keep an in-progress pickup intact unless placement has a valid route.
-		_cancel_pending_collection()
-		voice.cancel()
-		actor.follow_path(points)
-		placement_pending = true
-		incompatible_place_attempts = 0
-		help_highlight_active = false
-		placement_help_active = false
-		destination.position = Vector3(cell.x, 0.04, cell.y)
-		destination.visible = true
-		status.text = "O castor vai colocar o ramo."
-		_update_branch_cues()
-		return true
-	status.text = "A zona da represa está fora do caminho."
-	return false
+	var bank_spot: Vector3 = layout.anchor(&"dam_approach")
+	var path := navigation.find_path(actor.global_position, bank_spot)
+	if path.is_empty():
+		status.text = "A zona da represa está fora do caminho."
+		return false
+	# Keep an in-progress pickup intact unless placement has a valid route.
+	_cancel_pending_collection()
+	voice.cancel()
+	actor.follow_path(path)
+	placement_pending = true
+	incompatible_place_attempts = 0
+	help_highlight_active = false
+	placement_help_active = false
+	destination.position = bank_spot + Vector3.UP * 0.04
+	destination.visible = true
+	status.text = "O castor vai colocar o ramo."
+	_update_branch_cues()
+	return true
 
 
 func _update_water() -> void:
-	var depths: Array[float] = [0.8, 1.2, 1.6, 2.0]
-	var colors: Array[Color] = [Color("579fbd"), Color("4d9fc7"), Color("439dc9"), Color("3b97c4")]
-	var water_mesh := water_surface.mesh as BoxMesh
-	water_mesh.size.z = depths[mini(placed_count, 3)]
-	water_surface.position.z = -5.55 + depths[mini(placed_count, 3)] * 0.5
-	(water_mesh.material as StandardMaterial3D).albedo_color = colors[mini(placed_count, 3)]
+	var levels: Array[float] = [terrain.initial_water_level(), terrain.intermediate_water_level(), terrain.full_water_level(), terrain.full_water_level()]
+	water_surface.mesh = terrain.water_mesh(levels[mini(placed_count, 3)])
 	if visual_environment != null:
-		visual_environment.set_water_state(water_mesh.size.z, -5.55)
 		visual_environment.set_dam_state(placed_count, finish_choice)
 
 
@@ -928,7 +897,7 @@ func _restore_dam_save() -> void:
 			continue
 		placed_branch.place(self, placement_center, placed_count)
 		placed_count += 1
-	actor.position = Vector3(-4, 0.05, 0)
+	actor.position = layout.anchor(&"spawn") + Vector3.UP * 0.05
 	actor.follow_path(PackedVector3Array())
 	carried_branch = null
 	pending_branch = null
@@ -944,7 +913,7 @@ func _restore_dam_save() -> void:
 		home_invite.visible = false
 		food_progress.visible = false
 		get_node("CanvasLayer/DamProgress").visible = true
-		status.text = "Clica no chão para andar. O castor contorna a rocha."
+		status.text = "Clica no chão para andar."
 		return
 	for sparkle in celebration_sparkles:
 		sparkle.visible = true
@@ -1008,7 +977,10 @@ func _update_branch_cues() -> void:
 		if help_highlight_active and branches[index] != carried_branch and branches[index].state == branches[index].State.FREE and _is_suitable_material(branches[index]):
 			(cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1")
 	if placement_cue != null:
+		placement_cue.visible = placed_count < DAM_BRANCH_COUNT
 		(placement_cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1") if placement_help_active else Color("ffe17d")
+	if placement_area != null:
+		placement_area.collision_layer = 8 if placed_count < DAM_BRANCH_COUNT else 0
 
 
 func _is_suitable_material(branch: CollectibleBranch) -> bool:
@@ -1203,6 +1175,16 @@ func _clear_progress_for_restart() -> bool:
 	return DamSave.clear_save(save_directory)
 
 
+func _capture_initial() -> void:
+	# Fresh isolated save: the baseline view before any branch is placed.
+	await get_tree().create_timer(0.6).timeout
+	await RenderingServer.frame_post_draw
+	var error := get_viewport().get_texture().get_image().save_png("user://initial_valley.png")
+	if error == OK:
+		print("CASTOR_GRAPHICS_OK initial_valley_capture")
+	get_tree().quit(0 if error == OK else 1)
+
+
 func _capture() -> void:
 	await get_tree().create_timer(0.5).timeout
 	var initial_position := actor.position
@@ -1225,12 +1207,10 @@ func _capture() -> void:
 
 func _capture_home() -> void:
 	await get_tree().create_timer(0.4).timeout
-	# The home is only reachable after the dam, so the capture shows the full lake.
-	placed_count = DAM_BRANCH_COUNT
-	_update_water()
-	_update_progress_cue()
+	if not _prepare_capture_completed_dam():
+		get_tree().quit(1)
+		return
 	home_stage.activate()
-	_update_branch_cues()
 	home_invite.visible = true
 	home_invite.text = "Agora vamos construir a casa!"
 	status.text = "Agora vamos construir a casa! Escolhe uma peça."
@@ -1260,11 +1240,10 @@ func _capture_build_home() -> void:
 
 func _capture_food() -> void:
 	await get_tree().create_timer(0.4).timeout
-	placed_count = DAM_BRANCH_COUNT
-	_update_water()
-	_update_progress_cue()
+	if not _prepare_capture_completed_dam():
+		get_tree().quit(1)
+		return
 	home_stage.activate()
-	_update_branch_cues()
 	await _capture_build_home()
 	home_invite.text = "Agora vamos guardar comida para o inverno!"
 	home_invite.visible = true
@@ -1290,11 +1269,10 @@ func _capture_food() -> void:
 
 func _capture_ending() -> void:
 	await get_tree().create_timer(0.4).timeout
-	placed_count = DAM_BRANCH_COUNT
-	_update_water()
-	_update_progress_cue()
+	if not _prepare_capture_completed_dam():
+		get_tree().quit(1)
+		return
 	home_stage.activate()
-	_update_branch_cues()
 	await _capture_build_home()
 	for _index in range(FoodStage.REQUIRED_COUNT):
 		var bundle := _capture_first_suitable_food_bundle()
@@ -1322,6 +1300,51 @@ func _capture_first_suitable_food_bundle() -> FoodBundle:
 		if bundle.state <= FoodBundle.State.RESERVED and food_stage.is_bundle_suitable(bundle):
 			return bundle
 	return null
+
+
+func _prepare_capture_completed_dam() -> bool:
+	# Captures use the same durable dam state as gameplay, while _ready has
+	# already redirected persistence to the isolated user://capture_save/ folder.
+	if save_directory != "user://capture_save/":
+		push_error("Capture setup refused to use a non-isolated save directory.")
+		return false
+	var thick_branch: CollectibleBranch
+	var rotten_branch: CollectibleBranch
+	var normal_branches: Array[CollectibleBranch] = []
+	for branch in branches:
+		match branch.stable_id:
+			"branch_thick_01":
+				thick_branch = branch
+			"branch_rotten_01":
+				rotten_branch = branch
+			"branch_normal_01", "branch_normal_02":
+				normal_branches.append(branch)
+	if thick_branch == null or rotten_branch == null or normal_branches.size() != 2:
+		push_error("Capture setup could not find the branches required for a complete dam.")
+		return false
+	if not DamSave.clear_save(save_directory):
+		push_error("Capture setup could not clear the isolated capture save.")
+		return false
+	thick_branch.gnaw()
+	rotten_branch.bend()
+	var placed_branches: Array[CollectibleBranch] = [thick_branch]
+	placed_branches.append_array(normal_branches)
+	placed_count = 0
+	for branch in placed_branches:
+		if branch.state != CollectibleBranch.State.FREE:
+			push_error("Capture setup found a branch that was not available for dam placement: %s." % branch.stable_id)
+			return false
+		branch.place(self, placement_center, placed_count)
+		placed_count += 1
+	finish_choice = "finish_golden"
+	_update_water()
+	_update_progress_cue()
+	_update_branch_cues()
+	_update_finish_choices(false)
+	if placed_count != DAM_BRANCH_COUNT or not _save_dam_state():
+		push_error("Capture setup could not save a valid completed dam in the isolated capture save.")
+		return false
+	return true
 
 
 func _wait_for_capture(condition: Callable) -> void:

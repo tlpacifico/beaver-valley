@@ -13,14 +13,18 @@ signal completed
 const HomePartScript = preload("res://scripts/home_part.gd")
 const Shapes = preload("res://scripts/prototype_shapes.gd")
 
-const LODGE_CENTER := Vector3(-2.0, 0.32, -4.55)
-const WALL_SLOT_POSITION := Vector3(-2.0, 0.97, -3.82)
-const ROOF_SLOT_POSITION := Vector3(-2.0, 1.77, -4.55)
-const PART_ORIGINS: Array[Vector3] = [Vector3(-4.8, 0.18, -2.0), Vector3(-3.2, 0.18, -2.0), Vector3(-1.6, 0.18, -2.0)]
+const DEFAULT_LODGE_CENTER := Vector3(-5.5, -0.61, -4.8)
+const LODGE_FLOOR_SIZE: Vector3 = ValleyLayout.LODGE_FLOOR_SIZE
+const DEFAULT_PART_ORIGINS: Array[Vector3] = [Vector3(-4.8, 0.18, -2.0), Vector3(-3.2, 0.18, -2.0), Vector3(-1.6, 0.18, -2.0)]
 const PART_SHAPES: Array[HomePart.Shape] = [HomePart.Shape.ROUNDED_LOG, HomePart.Shape.LIGHT_PLANK, HomePart.Shape.MOSSY_LOG]
 const PART_IDS: Array[String] = ["home_part_rounded", "home_part_plank", "home_part_mossy"]
 const PART_LAYER: int = 16
 const SLOT_LAYER: int = 32
+
+var lodge_center: Vector3 = DEFAULT_LODGE_CENTER
+var wall_slot_position: Vector3 = DEFAULT_LODGE_CENTER + Vector3(0.0, 0.65, 0.33)
+var roof_slot_position: Vector3 = DEFAULT_LODGE_CENTER + Vector3(0.0, 1.45, 0.0)
+var part_origins: Array[Vector3] = DEFAULT_PART_ORIGINS.duplicate()
 
 var is_active: bool = false
 var slot_count: int = 2
@@ -34,7 +38,9 @@ var help_highlight_active: bool = false
 var slot_parts: Array = [null, null]
 
 var _actor: CharacterBody3D
-var _navigation: AStarGrid2D
+var _navigation: ValleyNavigation
+var _terrain: ValleyTerrain
+var _lodge_approach_position: Vector3 = Vector3(-0.7, 0.0, -3.5)
 var _part_cues: Array[MeshInstance3D] = []
 var _slot_areas: Array[Area3D] = []
 var _slot_ghosts: Array[MeshInstance3D] = []
@@ -43,15 +49,31 @@ var _completion_sparkles: Array[MeshInstance3D] = []
 var _window: MeshInstance3D
 
 
+func configure(terrain: ValleyTerrain, layout: ValleyLayout) -> void:
+	_terrain = terrain
+	# Keep the full floor above the uneven basin bed. The separate `lodge` anchor
+	# stays on the dry bank as the actor's approach point.
+	lodge_center = layout.lodge_build_center()
+	_lodge_approach_position = layout.anchor(&"lodge")
+	wall_slot_position = lodge_center + Vector3(0.0, 0.65, 0.33)
+	roof_slot_position = lodge_center + Vector3(0.0, 1.45, 0.0)
+	var spots: Array[Vector2] = [Vector2(-0.2, -1.4), Vector2(1.4, -3.0), Vector2(1.6, -0.2)]
+	part_origins.clear()
+	for spot in spots:
+		part_origins.append(Vector3(spot.x, terrain.height_at(spot) + 0.05, spot.y))
+
+
 func _ready() -> void:
 	_build_mound()
 	_build_lodge_shell()
 	_build_slots()
 	_build_parts()
 	_build_completion_sparkles()
+	for node in _lodge_nodes:
+		node.visible = false
 
 
-func bind(actor: CharacterBody3D, navigation: AStarGrid2D) -> void:
+func bind(actor: CharacterBody3D, navigation: ValleyNavigation) -> void:
 	_actor = actor
 	_navigation = navigation
 
@@ -92,8 +114,7 @@ func request_collect(part: HomePart) -> bool:
 		pending_part.cancel_reservation()
 		pending_part = null
 	pending_slot = -1
-	var start := Vector2i(roundi(_actor.position.x), roundi(_actor.position.z))
-	var points := _approach_path(part.position, start)
+	var points := _approach_path(part.position)
 	if points.is_empty():
 		status_changed.emit("Essa peça está longe demais para chegar.")
 		return false
@@ -131,8 +152,7 @@ func request_place(slot_index: int) -> bool:
 	if pending_part != null:
 		pending_part.cancel_reservation()
 		pending_part = null
-	var start := Vector2i(roundi(_actor.position.x), roundi(_actor.position.z))
-	var points := _approach_path(get_slot_position(slot_index), start)
+	var points := _approach_lodge_path()
 	if points.is_empty():
 		status_changed.emit("Não consigo chegar a essa parte da casa.")
 		return false
@@ -202,11 +222,11 @@ func part_at_slot(slot_index: int) -> HomePart:
 
 
 func get_slot_position(slot_index: int) -> Vector3:
-	return WALL_SLOT_POSITION if slot_index == 0 else ROOF_SLOT_POSITION
+	return wall_slot_position if slot_index == 0 else roof_slot_position
 
 
 func get_lodge_center() -> Vector3:
-	return LODGE_CENTER
+	return lodge_center
 
 
 ## Resolve overlapping slot colliders by the visible position the child tapped.
@@ -306,41 +326,28 @@ func _finish_placement() -> void:
 	_update_cues()
 
 
-func _approach_path(target: Vector3, start: Vector2i) -> PackedVector3Array:
-	var candidates: Array[Vector2i] = [
-		Vector2i(roundi(target.x) + 1, roundi(target.z)),
-		Vector2i(roundi(target.x) - 1, roundi(target.z)),
-		Vector2i(roundi(target.x), roundi(target.z) + 1),
-		Vector2i(roundi(target.x), roundi(target.z) - 1),
-		Vector2i(roundi(target.x) + 1, roundi(target.z) + 1),
-		Vector2i(roundi(target.x) - 1, roundi(target.z) - 1),
-	]
-	candidates.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return a.distance_squared_to(start) < b.distance_squared_to(start)
-	)
-	for cell in candidates:
-		if not _navigation.is_in_boundsv(cell) or _navigation.is_point_solid(cell):
-			continue
-		var path := _navigation.get_id_path(start, cell)
-		if path.is_empty():
-			continue
-		var points := PackedVector3Array()
-		for path_cell in path:
-			points.append(Vector3(path_cell.x, 0, path_cell.y))
-		return points
-	return PackedVector3Array()
+func _approach_path(target: Vector3) -> PackedVector3Array:
+	if _navigation == null or _actor == null:
+		return PackedVector3Array()
+	return _navigation.find_approach(_actor.global_position, Vector2(target.x, target.z), 4)
+
+
+func _approach_lodge_path() -> PackedVector3Array:
+	if _navigation == null or _actor == null:
+		return PackedVector3Array()
+	return _navigation.find_approach(_actor.global_position, Vector2(_lodge_approach_position.x, _lodge_approach_position.z), 3)
 
 
 func _slot_transform(slot_index: int, shape: HomePart.Shape) -> Transform3D:
 	if slot_index == 0:
-		var wall_scale := Vector3(1.45, 1.0, 1.0)
+		var wall_scale := Vector3(1.05, 1.0, 0.9)
 		if shape == HomePart.Shape.LIGHT_PLANK:
-			wall_scale = Vector3(1.45, 4.2, 1.0)
-		return Transform3D(Basis().scaled(wall_scale), WALL_SLOT_POSITION)
-	var roof_scale := Vector3(1.8, 1.2, 1.35)
+			wall_scale = Vector3(1.05, 4.2, 0.9)
+		return Transform3D(Basis().scaled(wall_scale), wall_slot_position)
+	var roof_scale := Vector3(1.2, 1.2, 0.8)
 	if shape == HomePart.Shape.LIGHT_PLANK:
-		roof_scale = Vector3(1.8, 2.5, 3.2)
-	return Transform3D(Basis().scaled(roof_scale), ROOF_SLOT_POSITION)
+		roof_scale = Vector3(1.2, 2.5, 2.0)
+	return Transform3D(Basis().scaled(roof_scale), roof_slot_position)
 
 
 func _update_cues() -> void:
@@ -372,6 +379,7 @@ func _update_cues() -> void:
 
 
 func _build_mound() -> void:
+	var water := _terrain.initial_water_level() if _terrain != null else 0.0
 	var mound := MeshInstance3D.new()
 	mound.name = "LodgeMound"
 	var mound_mesh := SphereMesh.new()
@@ -381,8 +389,8 @@ func _build_mound() -> void:
 	mound_mesh.rings = 8
 	mound_mesh.material = Shapes.material(Color("6b4a2f"))
 	mound.mesh = mound_mesh
-	mound.scale = Vector3(2.8, 0.36, 2.0)
-	mound.position = Vector3(LODGE_CENTER.x, 0.16, LODGE_CENTER.z)
+	mound.scale = Vector3(2.3, 0.5, 1.5)
+	mound.position = Vector3(lodge_center.x, water - 0.18, lodge_center.z)
 	mound.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mound)
 	_lodge_nodes.append(mound)
@@ -394,23 +402,22 @@ func _build_mound() -> void:
 	top_mesh.rings = 6
 	top_mesh.material = Shapes.material(Color("6f7d4e"))
 	mossy_top.mesh = top_mesh
-	mossy_top.scale = Vector3(2.3, 0.22, 1.6)
-	mossy_top.position = Vector3(LODGE_CENTER.x, 0.28, LODGE_CENTER.z)
+	mossy_top.scale = Vector3(1.9, 0.24, 1.25)
+	mossy_top.position = Vector3(lodge_center.x, water + 0.02, lodge_center.z)
 	mossy_top.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mossy_top)
 	_lodge_nodes.append(mossy_top)
-	# Loose sticks around the waterline read as a lodge mound rather than a floating box.
-	for index in range(7):
-		var angle := TAU * float(index) / 7.0
+	for index in range(8):
+		var angle := TAU * float(index) / 8.0
 		var stick := MeshInstance3D.new()
 		var stick_mesh := CylinderMesh.new()
 		stick_mesh.top_radius = 0.045
 		stick_mesh.bottom_radius = 0.06
-		stick_mesh.height = 0.7
+		stick_mesh.height = 0.8
 		stick_mesh.radial_segments = 6
 		stick_mesh.material = Shapes.material(Color("8a5a35"))
 		stick.mesh = stick_mesh
-		stick.position = Vector3(LODGE_CENTER.x + cos(angle) * 1.1, 0.11, LODGE_CENTER.z + sin(angle) * 0.8)
+		stick.position = Vector3(lodge_center.x + cos(angle) * 0.95, water + 0.08, lodge_center.z + sin(angle) * 0.58)
 		stick.rotation = Vector3(0.0, -angle, PI * 0.5)
 		stick.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(stick)
@@ -418,18 +425,20 @@ func _build_mound() -> void:
 
 
 func _build_lodge_shell() -> void:
-	var floor_part := _shell_box(Vector3(2.2, 0.12, 1.8), LODGE_CENTER + Vector3(0.0, 0.06, 0.0), Color("5b4632"))
+	var floor_part := _shell_box(LODGE_FLOOR_SIZE, lodge_center + Vector3(0.0, 0.06, 0.0), Color("5b4632"))
+	floor_part.name = "LodgeFloor"
 	_lodge_nodes.append(floor_part)
-	var back_wall := _shell_box(Vector3(2.2, 1.4, 0.16), LODGE_CENTER + Vector3(0.0, 0.7, -0.82), Color("6b5138"))
+	var back_wall := _shell_box(Vector3(1.4, 1.4, 0.16), lodge_center + Vector3(0.0, 0.7, -0.27), Color("6b5138"))
 	_lodge_nodes.append(back_wall)
-	for side_x in [-1.06, 1.06]:
-		var side_wall := _shell_box(Vector3(0.16, 1.4, 1.8), LODGE_CENTER + Vector3(side_x, 0.7, 0.0), Color("5f4932"))
+	for side_x in [-0.62, 0.62]:
+		var side_wall := _shell_box(Vector3(0.16, 1.4, 0.7), lodge_center + Vector3(side_x, 0.7, 0.0), Color("5f4932"))
 		_lodge_nodes.append(side_wall)
-	var front_base := _shell_box(Vector3(2.2, 0.28, 0.16), LODGE_CENTER + Vector3(0.0, 0.14, 0.82), Color("4f3d2c"))
+	var front_base := _shell_box(Vector3(1.4, 0.12, 0.16), lodge_center + Vector3(0.0, 0.06, 0.27), Color("4f3d2c"))
 	_lodge_nodes.append(front_base)
-	var door := _shell_box(Vector3(0.52, 0.7, 0.06), LODGE_CENTER + Vector3(0.0, 0.35, 0.91), Color("2f241b"))
+	var door := _shell_box(Vector3(0.52, 0.18, 0.06), lodge_center + Vector3(0.0, 0.21, 0.36), Color("2f241b"))
+	door.name = "LodgeEntrance"
 	_lodge_nodes.append(door)
-	_window = _shell_box(Vector3(0.38, 0.38, 0.06), LODGE_CENTER + Vector3(1.16, 0.85, 0.0), Color("ffd978"))
+	_window = _shell_box(Vector3(0.3, 0.3, 0.06), lodge_center + Vector3(0.76, 0.85, 0.0), Color("ffd978"))
 	var window_material := _window.mesh.material as StandardMaterial3D
 	window_material.emission_enabled = true
 	window_material.emission = Color("ffcf45")
@@ -451,7 +460,7 @@ func _build_slots() -> void:
 		var ghost := MeshInstance3D.new()
 		ghost.name = "HomeSlotGhost%d" % index
 		var ghost_mesh := BoxMesh.new()
-		ghost_mesh.size = Vector3(2.2, 0.72, 0.62) if index == 0 else Vector3(2.35, 0.22, 1.9)
+		ghost_mesh.size = Vector3(1.35, 0.72, 0.42) if index == 0 else Vector3(1.5, 0.22, 0.85)
 		ghost.mesh = ghost_mesh
 		ghost.material_override = _ghost_material()
 		ghost.position = get_slot_position(index)
@@ -466,7 +475,7 @@ func _build_slots() -> void:
 		area.set_meta("home_slot_index", index)
 		var collision := CollisionShape3D.new()
 		var shape := BoxShape3D.new()
-		shape.size = Vector3(2.45, 1.0, 0.85) if index == 0 else Vector3(2.6, 0.8, 2.2)
+		shape.size = Vector3(1.6, 1.0, 0.65) if index == 0 else Vector3(1.7, 0.8, 1.1)
 		collision.shape = shape
 		collision.position = get_slot_position(index)
 		area.add_child(collision)
@@ -475,17 +484,17 @@ func _build_slots() -> void:
 
 
 func _build_parts() -> void:
-	for index in range(PART_ORIGINS.size()):
+	for index in range(part_origins.size()):
 		var part: HomePart = HomePartScript.new()
 		part.name = "HomePart%d" % index
 		part.configure_shape(PART_SHAPES[index], PART_IDS[index])
-		part.position = PART_ORIGINS[index]
+		part.position = part_origins[index]
 		add_child(part)
 		parts.append(part)
 		part.visible = false
 		if part.hit_area != null:
 			part.hit_area.collision_layer = 0
-		var cue := _ground_ring(PART_ORIGINS[index], 0.7, Color("fff0a3"))
+		var cue := _ground_ring(part_origins[index], 0.55, Color("fff0a3"))
 		cue.name = "HomePartCue%d" % index
 		cue.visible = false
 		_part_cues.append(cue)
@@ -538,7 +547,7 @@ func _show_completion() -> void:
 		_window.visible = true
 	for index in range(_completion_sparkles.size()):
 		var sparkle := _completion_sparkles[index]
-		sparkle.position = LODGE_CENTER + Vector3((index - 1.5) * 0.4, 1.5, 0.0)
+		sparkle.position = lodge_center + Vector3((index - 1.5) * 0.4, 1.5, 0.0)
 		sparkle.scale = Vector3.ONE * 0.05
 		sparkle.visible = true
 		var tween := create_tween()

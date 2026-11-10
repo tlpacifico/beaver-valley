@@ -13,14 +13,17 @@ signal activated
 const FoodBundleScript = preload("res://scripts/food_bundle.gd")
 const Shapes = preload("res://scripts/prototype_shapes.gd")
 
-const TARGET_POSITION := Vector3(-0.2, 0.06, -4.6)
-const BUNDLE_ORIGINS: Array[Vector3] = [Vector3(-5.2, 0.18, 0.6), Vector3(-3.8, 0.18, 0.6), Vector3(-2.4, 0.18, 0.6), Vector3(2.2, 0.18, 0.6), Vector3(3.6, 0.18, 0.6)]
+const DEFAULT_TARGET_POSITION := Vector3(-0.2, 0.06, -4.6)
+const DEFAULT_BUNDLE_ORIGINS: Array[Vector3] = [Vector3(-5.2, 0.18, 0.6), Vector3(-3.8, 0.18, 0.6), Vector3(-2.4, 0.18, 0.6), Vector3(2.2, 0.18, 0.6), Vector3(3.6, 0.18, 0.6)]
 const BUNDLE_KINDS: Array[FoodBundle.Kind] = [FoodBundle.Kind.SUITABLE, FoodBundle.Kind.THIN, FoodBundle.Kind.SUITABLE, FoodBundle.Kind.SUITABLE, FoodBundle.Kind.THIN]
 const BUNDLE_IDS: Array[String] = ["food_bundle_01", "food_bundle_02", "food_bundle_03", "food_bundle_04", "food_bundle_05"]
 const BUNDLE_LAYER: int = 64
 const TARGET_LAYER: int = 128
 const REQUIRED_COUNT: int = 3
 
+var target_position: Vector3 = DEFAULT_TARGET_POSITION
+var water_surface_y: float = 0.0
+var bundle_origins: Array[Vector3] = DEFAULT_BUNDLE_ORIGINS.duplicate()
 var is_active: bool = false
 var placed_count: int = 0
 var placed_bundles: Array[FoodBundle] = []
@@ -32,11 +35,26 @@ var help_highlight_active: bool = false
 var placement_help_active: bool = false
 
 var _actor: CharacterBody3D
-var _navigation: AStarGrid2D
+var _navigation: ValleyNavigation
+var _lodge_approach_position: Vector3 = Vector3(-0.7, 0.0, -3.5)
 var _bundle_cues: Array[MeshInstance3D] = []
 var _target_ring: MeshInstance3D
 var _target_area: Area3D
 var _completion_sparkles: Array[MeshInstance3D] = []
+
+
+func configure(terrain: ValleyTerrain, layout: ValleyLayout) -> void:
+	var lodge_site := layout.lodge_site()
+	_lodge_approach_position = layout.anchor(&"lodge")
+	var target := Vector2(lodge_site.x + 0.7, lodge_site.z + 0.6)
+	# Beavers cache branches under water beside the lodge; the actor still
+	# approaches from the dry bank.
+	target_position = Vector3(target.x, terrain.initial_water_level() - 0.08, target.y)
+	water_surface_y = terrain.initial_water_level()
+	var spots: Array[Vector2] = [Vector2(1.2, -4.1), Vector2(2.4, -4.7), Vector2(3.6, -4.1), Vector2(4.4, -4.8), Vector2(3.0, -3.5)]
+	bundle_origins.clear()
+	for spot in spots:
+		bundle_origins.append(Vector3(spot.x, terrain.height_at(spot) + 0.05, spot.y))
 
 
 func _ready() -> void:
@@ -45,7 +63,7 @@ func _ready() -> void:
 	_build_completion_sparkles()
 
 
-func bind(actor: CharacterBody3D, navigation: AStarGrid2D) -> void:
+func bind(actor: CharacterBody3D, navigation: ValleyNavigation) -> void:
 	_actor = actor
 	_navigation = navigation
 
@@ -94,8 +112,7 @@ func request_collect(bundle: FoodBundle) -> bool:
 		pending_bundle.cancel_reservation()
 		pending_bundle = null
 	target_pending = false
-	var start := Vector2i(roundi(_actor.position.x), roundi(_actor.position.z))
-	var points := _approach_path(bundle.position, start)
+	var points := _approach_path(bundle.position)
 	if points.is_empty():
 		status_changed.emit("Esse feixe está longe demais para chegar.")
 		return false
@@ -137,8 +154,7 @@ func request_place() -> bool:
 	if pending_bundle != null:
 		pending_bundle.cancel_reservation()
 		pending_bundle = null
-	var start := Vector2i(roundi(_actor.position.x), roundi(_actor.position.z))
-	var points := _approach_path(TARGET_POSITION, start)
+	var points := _approach_lodge_path()
 	if points.is_empty():
 		status_changed.emit("Não consigo chegar à água.")
 		return false
@@ -208,7 +224,7 @@ func is_bundle_suitable(bundle: FoodBundle) -> bool:
 
 
 func get_target_position() -> Vector3:
-	return TARGET_POSITION
+	return target_position
 
 
 func get_suitable_count() -> int:
@@ -311,32 +327,19 @@ func _pile_transform(index: int) -> Transform3D:
 	var offsets := [-0.34, 0.0, 0.34]
 	var offset_x: float = offsets[mini(index, offsets.size() - 1)]
 	var basis := Basis(Vector3.UP, float(index) * 0.7).scaled(Vector3.ONE)
-	return Transform3D(basis, TARGET_POSITION + Vector3(offset_x, 0.12, 0.0))
+	return Transform3D(basis, target_position + Vector3(offset_x, 0.02, 0.0))
 
 
-func _approach_path(target: Vector3, start: Vector2i) -> PackedVector3Array:
-	var candidates: Array[Vector2i] = [
-		Vector2i(roundi(target.x) + 1, roundi(target.z)),
-		Vector2i(roundi(target.x) - 1, roundi(target.z)),
-		Vector2i(roundi(target.x), roundi(target.z) + 1),
-		Vector2i(roundi(target.x), roundi(target.z) - 1),
-		Vector2i(roundi(target.x) + 1, roundi(target.z) + 1),
-		Vector2i(roundi(target.x) - 1, roundi(target.z) - 1),
-	]
-	candidates.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return a.distance_squared_to(start) < b.distance_squared_to(start)
-	)
-	for cell in candidates:
-		if not _navigation.is_in_boundsv(cell) or _navigation.is_point_solid(cell):
-			continue
-		var path := _navigation.get_id_path(start, cell)
-		if path.is_empty():
-			continue
-		var points := PackedVector3Array()
-		for path_cell in path:
-			points.append(Vector3(path_cell.x, 0, path_cell.y))
-		return points
-	return PackedVector3Array()
+func _approach_path(target: Vector3) -> PackedVector3Array:
+	if _navigation == null or _actor == null:
+		return PackedVector3Array()
+	return _navigation.find_approach(_actor.global_position, Vector2(target.x, target.z), 9)
+
+
+func _approach_lodge_path() -> PackedVector3Array:
+	if _navigation == null or _actor == null:
+		return PackedVector3Array()
+	return _navigation.find_approach(_actor.global_position, Vector2(_lodge_approach_position.x, _lodge_approach_position.z), 3)
 
 
 func _update_cues() -> void:
@@ -367,11 +370,11 @@ func _build_target() -> void:
 	_target_ring = MeshInstance3D.new()
 	_target_ring.name = "FoodTargetCue"
 	var ring := TorusMesh.new()
-	ring.inner_radius = 0.72
-	ring.outer_radius = 1.0
+	ring.inner_radius = 0.82
+	ring.outer_radius = 1.1
 	ring.material = Shapes.material(Color("ffe17d"))
 	_target_ring.mesh = ring
-	_target_ring.position = TARGET_POSITION + Vector3.UP * 0.04
+	_target_ring.position = Vector3(target_position.x, water_surface_y + 0.12, target_position.z)
 	_target_ring.visible = false
 	_target_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_target_ring)
@@ -383,23 +386,23 @@ func _build_target() -> void:
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(2.2, 0.8, 1.7)
 	collision.shape = shape
-	collision.position = TARGET_POSITION
+	collision.position = target_position
 	_target_area.add_child(collision)
 	add_child(_target_area)
 
 
 func _build_bundles() -> void:
-	for index in range(BUNDLE_ORIGINS.size()):
+	for index in range(bundle_origins.size()):
 		var bundle: FoodBundle = FoodBundleScript.new()
 		bundle.name = "FoodBundle%d" % index
 		bundle.configure_bundle(BUNDLE_KINDS[index], BUNDLE_IDS[index])
-		bundle.position = BUNDLE_ORIGINS[index]
+		bundle.position = bundle_origins[index]
 		add_child(bundle)
 		bundle.visible = false
 		bundles.append(bundle)
 		if bundle.hit_area != null:
 			bundle.hit_area.collision_layer = 0
-		var cue := _ground_ring(BUNDLE_ORIGINS[index], 0.65, Color("fff0a3"))
+		var cue := _ground_ring(bundle_origins[index], 0.65, Color("fff0a3"))
 		cue.name = "FoodBundleCue%d" % index
 		cue.visible = false
 		_bundle_cues.append(cue)
@@ -441,7 +444,7 @@ func _build_completion_sparkles() -> void:
 func _show_completion() -> void:
 	for index in range(_completion_sparkles.size()):
 		var sparkle := _completion_sparkles[index]
-		sparkle.position = TARGET_POSITION + Vector3((index - 1.5) * 0.35, 0.5, 0.0)
+		sparkle.position = target_position + Vector3((index - 1.5) * 0.35, 0.5, 0.0)
 		sparkle.scale = Vector3.ONE * 0.05
 		sparkle.visible = true
 		var tween := create_tween()

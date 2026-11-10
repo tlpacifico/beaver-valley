@@ -91,6 +91,8 @@ func _run() -> void:
 	_expect(int(food.call("get_suitable_count")) == 3 and int(food.call("get_thin_count")) == 2, "The food stage does not offer three suitable and two thin bundles.")
 	var viewport := Rect2(Vector2.ZERO, Vector2(960, 600))
 	var target_position: Vector3 = food.call("get_target_position")
+	_expect(target_position.y < world.terrain.initial_water_level(), "The food cache is not underwater.")
+	_expect(world.terrain.is_water_footprint(Vector2(target_position.x, target_position.z)), "The food cache is not in the lake footprint.")
 	_expect(viewport.has_point(world.camera.unproject_position(target_position)), "The food target is outside the fixed camera view.")
 	for bundle: Node in bundles:
 		_expect(viewport.has_point(world.camera.unproject_position(bundle.global_position + Vector3.UP * 0.15)), "A food bundle is outside the fixed camera view.")
