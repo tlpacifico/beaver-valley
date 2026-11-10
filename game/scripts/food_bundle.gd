@@ -45,11 +45,11 @@ func cancel_reservation() -> void:
 		state = State.FREE
 
 
-func carry(parent: Node3D) -> void:
+func carry(parent: Node3D, offset: Vector3 = CollectibleBranch.DEFAULT_CARRY_OFFSET) -> void:
 	state = State.CARRIED
 	_reparent_to(parent)
 	scale = Vector3.ONE
-	position = Vector3(0.0, 0.95, -0.55)
+	position = offset
 	rotation = Vector3(0.0, 0.0, deg_to_rad(-15.0))
 	hit_area.collision_layer = 0
 

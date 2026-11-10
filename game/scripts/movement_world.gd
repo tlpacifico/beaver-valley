@@ -4,6 +4,7 @@ extends Node3D
 
 const Shapes = preload("res://scripts/prototype_shapes.gd")
 const Actor = preload("res://scripts/prototype_actor.gd")
+const CastorScene = preload("res://assets/characters/castor/Castor.glb")
 const BranchScene = preload("res://scenes/collectible_branch.tscn")
 const VoiceScript = preload("res://scripts/provisional_voice.gd")
 const VisualEnvironmentScript = preload("res://scripts/visual_environment.gd")
@@ -153,6 +154,9 @@ func _ready() -> void:
 	add_child(support_characters)
 	_build_placement_target()
 	actor = Actor.new()
+	actor.model_scene = CastorScene
+	actor.model_scale = 0.72
+	actor.carry_offset = Vector3(-0.11, 0.44, -0.48)
 	actor.position = layout.anchor(&"spawn") + Vector3.UP * 0.05
 	add_child(actor)
 	home_stage = HomeStageScript.new()
@@ -226,7 +230,7 @@ func _ready() -> void:
 	var capture_mode := "--capture-initial" in OS.get_cmdline_user_args() or "--capture-home" in OS.get_cmdline_user_args() or "--capture-food" in OS.get_cmdline_user_args() or "--capture-ending" in OS.get_cmdline_user_args() or "--capture-water" in OS.get_cmdline_user_args()
 	if "--fresh-save" in OS.get_cmdline_user_args():
 		# Interactive playtest from the beginning, isolated from the normal save.
-		save_directory = "user://playtest_save/"
+		save_directory = "user://painted_beaver_playtest_save/" if "--beaver-playtest" in OS.get_cmdline_user_args() else "user://playtest_save/"
 		DamSave.clear_save(save_directory)
 	if capture_mode:
 		# Debug captures must never alter the player's chapter save.
@@ -478,7 +482,8 @@ func _physics_process(_delta: float) -> void:
 			carried_branch = null
 		carried_branch = pending_branch
 		var was_bent := carried_branch.bent
-		carried_branch.carry(actor)
+		var carry_roll := deg_to_rad(-15.0) if carried_branch.kind == CollectibleBranch.Kind.ROTTEN else 0.0
+		carried_branch.carry(actor, actor.carry_offset, carry_roll)
 		var newly_bent := not was_bent and carried_branch.bent and carried_branch.kind == CollectibleBranch.Kind.ROTTEN
 		var carry_save_ok := true
 		if newly_bent:

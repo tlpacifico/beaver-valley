@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('editor', 'run', 'playtest', 'follow', 'cube', 'assets', 'relief', 'relief-capture', 'traversal', 'traversal-capture', 'check', 'export-windows', 'export-android', 'branch-export')]
+    [ValidateSet('editor', 'run', 'playtest', 'beaver-playtest', 'follow', 'cube', 'assets', 'relief', 'relief-capture', 'traversal', 'traversal-capture', 'check', 'export-windows', 'export-android', 'branch-export')]
     [string]$Action = 'run'
 )
 
@@ -19,6 +19,7 @@ switch ($Action) {
     }
     'run' { & $godotConsole --path $gamePath }
     'playtest' { & $godotConsole --path $gamePath -- --fresh-save }
+    'beaver-playtest' { & $godotConsole --path $gamePath -- --beaver-playtest --fresh-save }
     'follow' { & $godotConsole --path $gamePath -- --camera-follow }
     'cube' { & $godotConsole --path $gamePath res://scenes/bootstrap.tscn }
     'assets' { & $godotConsole --path $gamePath res://scenes/asset_import_test.tscn }

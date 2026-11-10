@@ -35,6 +35,15 @@ func _run() -> void:
 	world.save_directory = SAVE_TEST_DIRECTORY
 	root.add_child(world)
 	await _wait(func() -> bool: return world.actor.is_on_floor(), 5.0)
+	var skeleton := world.actor.find_child("Skeleton3D", true, false) as Skeleton3D
+	_expect(skeleton != null and skeleton.get_bone_count() == 13, "The chapter did not load the new beaver rig by default.")
+	if failures > 0:
+		quit(1)
+		return
+	_expect(world.actor.animation_player.has_animation(&"Walk"), "The new beaver is missing its walking clip.")
+	var body := world.actor.beaver_model.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+	var coat := body.mesh.surface_get_material(0) as StandardMaterial3D
+	_expect(coat != null and coat.albedo_texture != null, "The new beaver is missing its painted coat.")
 	var spawn_ground: float = world.terrain.height_at(Vector2(world.actor.global_position.x, world.actor.global_position.z))
 	_expect(absf(world.actor.global_position.y - spawn_ground) <= 0.15, "A fresh chapter did not spawn safely on the terrain surface.")
 
@@ -104,7 +113,9 @@ func _run() -> void:
 	var branch: Node = world.branches[4]
 	var branch_screen: Vector2 = world.camera.unproject_position(branch.global_position + Vector3.UP * 0.15)
 	_expect(world._move_from_screen(branch_screen), "Tapping a branch on the raised bank did not start collection.")
+	_expect(await _wait(func() -> bool: return world.actor.current_animation == &"Walk", 5.0), "The new beaver did not play Walk while approaching the branch.")
 	_expect(await _wait(func() -> bool: return world.carried_branch == branch, 15.0), "The branch was not carried after the approach.")
+	_expect(branch.get_parent() == world.actor and branch.position.is_equal_approx(Vector3(-0.11, 0.44, -0.48)) and is_zero_approx(branch.rotation.z), "The collected branch did not attach at the new beaver's paws.")
 	_expect(world.request_place(), "The carried branch could not be routed to the dam.")
 	_expect(await _wait(func() -> bool: return world.placed_count == 1, 15.0), "The first branch was not placed in the dam.")
 	_expect(is_equal_approx(world.water_level, world.terrain.intermediate_water_level()), "The first dam placement did not raise the lake to the intermediate level.")
@@ -147,6 +158,7 @@ func _run() -> void:
 		var target_count := placed_food + 1
 		_expect(food.request_collect(bundle), "A suitable food bundle could not be selected.")
 		_expect(await _wait(func() -> bool: return food.carried_bundle == bundle, 15.0), "A suitable bundle was not carried.")
+		_expect(bundle.position.is_equal_approx(Vector3(-0.11, 0.44, -0.48)), "The food bundle did not attach at the new beaver's paws.")
 		_expect(food.request_place(), "The bundle could not be routed to the food target.")
 		_expect(await _wait(func() -> bool: return food.placed_count == target_count, 15.0), "A suitable bundle was not stored.")
 		placed_food = target_count
@@ -165,6 +177,7 @@ func _place_home_part(home: Node, part: Node, slot_index: int) -> bool:
 		return false
 	if not await _wait(func() -> bool: return home.carried_part == part, 15.0):
 		return false
+	_expect(part.position.is_equal_approx(Vector3(-0.11, 0.44, -0.48)), "The lodge part did not attach at the new beaver's paws.")
 	if not home.request_place(slot_index):
 		return false
 	return await _wait(func() -> bool: return home.placed_slot_count == slot_index + 1, 15.0)

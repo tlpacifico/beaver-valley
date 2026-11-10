@@ -324,7 +324,7 @@ func _finish_pickup() -> void:
 	if carried_bundle != null and carried_bundle != bundle:
 		carried_bundle.return_to_origin(self)
 	carried_bundle = bundle
-	bundle.carry(_actor)
+	bundle.carry(_actor, _actor.carry_offset)
 	sound_requested.emit("collect")
 	voice_requested.emit("help_food_place")
 	help_highlight_active = false

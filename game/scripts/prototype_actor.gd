@@ -2,6 +2,9 @@ extends CharacterBody3D
 
 const BeaverScene = preload("res://assets/characters/beaver/Beaver.glb")
 const SPEED: float = 2.8
+var model_scene: PackedScene = BeaverScene
+var model_scale: float = 1.0
+var carry_offset := CollectibleBranch.DEFAULT_CARRY_OFFSET
 var waypoints: PackedVector3Array = []
 var visual: Node3D
 var beaver_model: Node3D
@@ -33,8 +36,9 @@ func _ready() -> void:
 	# the body direction; action tweens stay on beaver_model and keep their axes.
 	visual.rotation.y = PI
 	add_child(visual)
-	beaver_model = BeaverScene.instantiate() as Node3D
+	beaver_model = model_scene.instantiate() as Node3D
 	beaver_model.name = "BeaverModel"
+	beaver_model.scale = Vector3.ONE * model_scale
 	visual.add_child(beaver_model)
 	animation_player = _find_animation_player(beaver_model)
 	if animation_player != null:

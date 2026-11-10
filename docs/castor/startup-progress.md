@@ -418,3 +418,27 @@ This supersedes the earlier notes that the home and food progress were transient
 - **P3 — backdrop and lodge attempt.** Lightened the distant hills and added a sparse line of darker bushes on the far ridge; the seam is less harsh but still visible. A continuous ridge curtain was tried and reverted because it read as a picket fence. A single lodge dome was also reverted; the final lodge uses several mud-and-stick lobes, a front opening and woven sticks, so its silhouette is less cabin-like while the two build positions stay visible.
 - Still open from the review: the far terrain/backdrop seam, the bank-side dam cue distance, the cache's surface-basket readability and the author's acceptance of the rounded lodge. A short fog trial blurred the whole scene and was reverted rather than degrading contrast.
 - Re-ran `./tools/castor.ps1 check` after the fixes; all groups passed, including the new branch-flight test. Re-exported Windows and regenerated the R4/R5 captures and contact sheets. No Android, child or author acceptance was performed.
+
+## Painted beaver candidate (10 November 2026)
+
+- Used Blender to bake a single 1024 × 1024 base-colour texture onto the supplied Meshy model's UV layout, using the author-supplied illustration for the palette. The editable Blender file, texture, GLB, and capture are in the local `builds/beaver-paint-preview/` trial.
+- Imported and rendered the candidate in a separate Godot 4.7.2 Compatibility project. The preview verified a 40-bone skeleton, the texture, and the two-second `Idle` clip. The branch is part of the candidate mesh. Gameplay integration, a walking clip, and real-device checks remain open.
+- Created a branchless variant in `builds/beaver-branchless-preview/`. Removed the fused shaft and leaves, closed the cuts into one connected manifold surface, and rebaked the texture with UVs for the repaired faces. Reviewed front, side and three-quarter Godot captures. The paws retain their original grip pose and a faint join is visible between them at close range. The painted source with the branch is kept alongside the separate variant.
+- Integrated the candidate into the playable valley through `./tools/castor.ps1 beaver-playtest`. The trial scales the visual to 72%, plays `Idle` and a provisional skeletal `Walk`, and aligns the separate dam branch with the candidate's paws. It uses a clean, isolated playtest save. The Windows chapter test passed with the painted rig, walking clip, branch pickup, gnawing, dam placement, lodge, food and winter progression. The play-camera capture with a carried branch is in `builds/beaver-branchless-preview/beaver-in-valley.png`. Author visual acceptance, Android and child checks remain open.
+- `./tools/castor.ps1 check` passed on Windows with both chapter variants. The forced save-failure tests emitted their expected warnings.
+- Compared the author-supplied `Meshy_AI_Cheerful_Little_Beave_1110220136_generate.glb` against the painted playtest candidate in the Windows valley at the same 1.224 m height, spawn and camera. The new 3,078-triangle mesh has UVs and a cleaner chest and paw silhouette, and it has no materials, textures, skeleton or clips. The side-by-side capture is in `builds/beaver-generation-comparison/`. The new mesh is a static comparison candidate pending rig and texture evaluation.
+
+## Branchless character concept sheet (10 November 2026)
+
+- Updated docs/castor/mockups/characters-concept-v3.png with the built-in image editor to remove the large beaver's held branch and leaves; its paws are now empty. Visually inspected the result: both beaver views are branchless, and the owl, otter, colourful layout and Portuguese labels remain present.
+- This is a 2D reference edit only; no game assets, device validation or milestone status changed.
+
+## New beaver rig trial (10 November 2026)
+
+- Fitted a 13-bone rig and authored provisional `Idle` and `Walk` clips for the second Meshy mesh. Used automatic weights as a starting point, adjusted the arm-to-chest and leg-to-belly transitions, and normalized to four influences per vertex. Blender verified that both clips loop and deform the skin. The walk still has slight floor penetration in the sampled poses.
+- Ran the rig in the real Windows valley with the isolated `builds/beaver-rig-preview/playtest.ps1` launcher. The test verified foot motion, collection, branch shaft alignment at both paws, and placement in the dam. The editable Blender source, GLB and captures are in that trial directory. The branch uses a fixed offset during carry, and the rig uses a neutral material pending texture work. Android and visual acceptance remain open.
+
+## Painted Castor becomes the playable beaver (10 November 2026)
+
+- Painted the second Meshy model from the branchless reference and baked a 1024 × 1024 base-colour texture. The playable valley now selects the painted 13-bone Castor by default. The source is `art/characters/castor/Castor.blend`, with the original GLB kept beside it in `originals/`. Carry offsets for dam branches, lodge parts and food bundles match the new paws.
+- The graphical Windows check used the actual chapter asset, observed foot motion in `Walk`, collected a branch, checked both paw positions, and placed the branch in the dam. Captures are in `builds/castor-painted-v2/`. The full `./tools/castor.ps1 check` suite passed, including the complete chapter and save fixtures. The walking animation remains provisional. Android and author visual acceptance remain open.

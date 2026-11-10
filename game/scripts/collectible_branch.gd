@@ -5,6 +5,8 @@ extends Node3D
 enum State { FREE, RESERVED, CARRIED, PLACED }
 enum Kind { NORMAL, THICK, ROTTEN }
 
+const DEFAULT_CARRY_OFFSET := Vector3(0.0, 0.95, -0.55)
+
 var state: State = State.FREE
 var origin: Vector3
 var hit_area: Area3D
@@ -122,15 +124,15 @@ func _add_gnaw_scars() -> void:
 		gnaw_scars.append(scar)
 
 
-func carry(parent: Node3D) -> void:
+func carry(parent: Node3D, offset: Vector3 = DEFAULT_CARRY_OFFSET, roll: float = deg_to_rad(-15.0)) -> void:
 	state = State.CARRIED
 	if get_parent() != parent:
 		var world_transform := global_transform
 		get_parent().remove_child(self)
 		parent.add_child(self)
 		global_transform = world_transform
-	position = Vector3(0.0, 0.95, -0.55)
-	rotation = Vector3(0.0, 0.0, deg_to_rad(-15.0))
+	position = offset
+	rotation = Vector3(0.0, 0.0, roll)
 	hit_area.collision_layer = 0
 	if kind == Kind.ROTTEN and not bent:
 		bend()

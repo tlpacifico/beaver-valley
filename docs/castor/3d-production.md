@@ -119,4 +119,16 @@ The four procedural sound effects in `game/audio/effects/` are original project-
 
 ## Meshy golden tree trial (9 November 2026)
 
+
 The author supplied a generated/remeshed GLB after reporting Meshy Pro access. Original and provenance: `art/environment/meshy-tree/originals/golden_tree.glb` and the adjacent parent `README.md`. It contains 3112 triangles and no materials. The editable prepared source is `art/environment/meshy-tree/golden_tree.blend`, reproducible with `prepare_tree.py`; the exported candidate is `game/assets/environment/meshy_tree/golden_tree.glb`. Local preparation added two materials, corrected normals and set a provisional 2.4 m height. Two instances are provisionally integrated at 0.68 scale in the rear side margins of the main valley, replacing two procedural bush clusters. They add no collision or interaction targets and remain in the shared environment across dam, home, food and winter states. The source and export must stay paired if the geometry or materials change. Generation-time licence/attribution must be confirmed: an earlier UI showed CC BY 4.0, while the file itself has no licence metadata; later Pro access must not be assumed to retroactively change those terms. See the asset README for the unresolved terms and visual/device checks.
+
+## Meshy painted beaver trial (10 November 2026)
+
+- Origin: project author supplied `Meshy_AI_Cheerful_Little_Beaver_20261110_character.glb` and a separate palette reference. The mesh is identified as a Meshy generation by the supplied filename. The GLB has no embedded author, licence or attribution metadata. Confirm the generation account and applicable terms before adopting the asset.
+- Local preparation: a 1024 × 1024 base-colour texture and a two-second `Idle` action on the supplied 40-bone rig. The editable source and exported GLB are paired in the ignored `builds/beaver-paint-preview/` trial.
+- First playable Windows trial: the branchless version with `Idle` and a provisional `Walk` is editable in `art/characters/painted-beaver/PaintedBeaver.blend` and exported as `game/assets/characters/painted_beaver/PaintedBeaver.glb`. The second Meshy generation superseded this trial in the valley.
+
+## Playable Castor from the second Meshy generation (10 November 2026)
+
+- Origin: the project author supplied the Meshy-generated `Meshy_AI_Cheerful_Little_Beave_1110220136_generate.glb` from the branchless reference. The unchanged original is in `art/characters/castor/originals/`. The GLB carries no embedded author, licence or attribution metadata. The generation account, applicable terms and credit requirements still need confirmation before distribution.
+- Source and export: `art/characters/castor/Castor.blend` contains the 13-bone rig, two-second `Idle`, provisional `Walk` and packed 1024 × 1024 base colour. `game/assets/characters/castor/Castor.glb` is the playable valley export. The actor applies a 0.72 visual scale and rotates the model to follow its forward direction.

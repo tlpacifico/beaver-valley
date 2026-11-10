@@ -315,7 +315,7 @@ func _finish_pickup() -> void:
 	if carried_part != null and carried_part != part:
 		carried_part.return_to_origin(self)
 	carried_part = part
-	part.carry(_actor)
+	part.carry(_actor, _actor.carry_offset)
 	sound_requested.emit("collect")
 	voice_requested.emit("help_home_place")
 	help_highlight_active = false

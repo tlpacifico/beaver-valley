@@ -13,6 +13,7 @@ At the repository root, in PowerShell:
 ```powershell
 ./tools/castor.ps1 run
 ./tools/castor.ps1 playtest
+./tools/castor.ps1 beaver-playtest
 ./tools/castor.ps1 editor
 ./tools/castor.ps1 cube
 ./tools/castor.ps1 relief
@@ -22,6 +23,8 @@ At the repository root, in PowerShell:
 ```
 
 `run` opens the current chapter and restores the normal progress. `playtest` opens the same chapter from a clean isolated `user://playtest_save/` directory, clearing only that test save, so the normal `user://dam_save.json` is not touched. Use it for a full playtest from the beginning.
+
+The playable valley uses the new painted Castor with a provisional `Walk`. `beaver-playtest` starts the same chapter from a clean `user://painted_beaver_playtest_save/` for character testing.
 
 Run one action at a time. You can also open `builds/windows/Castor.exe` directly, without the editor. Clicking a free spot on the bank makes the character walk to the yellow circle along the terrain; another valid click changes the destination. Water, the future lake footprint, steep banks and outside the valley are refused without cancelling the current path. Closing the window ends the test. In the `cube` scene, the button pauses and resumes the rotation.
 
