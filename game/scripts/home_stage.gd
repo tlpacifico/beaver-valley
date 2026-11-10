@@ -47,6 +47,7 @@ var _slot_ghosts: Array[MeshInstance3D] = []
 var _lodge_nodes: Array[Node3D] = []
 var _completion_sparkles: Array[MeshInstance3D] = []
 var _window: MeshInstance3D
+var _snow_cap: Node3D
 
 
 func configure(terrain: ValleyTerrain, layout: ValleyLayout) -> void:
@@ -66,11 +67,15 @@ func configure(terrain: ValleyTerrain, layout: ValleyLayout) -> void:
 func _ready() -> void:
 	_build_mound()
 	_build_lodge_shell()
+	_build_slope_sticks()
+	_build_snow_cap()
 	_build_slots()
 	_build_parts()
 	_build_completion_sparkles()
 	for node in _lodge_nodes:
 		node.visible = false
+	if _snow_cap != null:
+		_snow_cap.visible = false
 
 
 func bind(actor: CharacterBody3D, navigation: ValleyNavigation) -> void:
@@ -87,6 +92,20 @@ func activate() -> void:
 	for part in parts:
 		part.visible = true
 	_update_cues()
+
+
+## Winter cap that follows the roof slot, so snow belongs to the same lodge.
+func set_snow(active: bool) -> void:
+	if _snow_cap != null:
+		_snow_cap.visible = active and is_active
+
+
+func is_snow_visible() -> bool:
+	return _snow_cap != null and _snow_cap.visible
+
+
+func get_snow_cap() -> Node3D:
+	return _snow_cap
 
 
 func _physics_process(_delta: float) -> void:
@@ -357,6 +376,7 @@ func _update_cues() -> void:
 	for index in range(parts.size()):
 		var part := parts[index]
 		var selectable := not complete and (part.state == HomePart.State.FREE or part.state == HomePart.State.RESERVED)
+		part.visible = not complete or part.state == HomePart.State.PLACED
 		if part.hit_area != null:
 			part.hit_area.collision_layer = PART_LAYER if selectable else 0
 		var cue := _part_cues[index]
@@ -379,7 +399,7 @@ func _update_cues() -> void:
 
 
 func _build_mound() -> void:
-	var water := _terrain.initial_water_level() if _terrain != null else 0.0
+	var water := _terrain.full_water_level() if _terrain != null else 0.0
 	var mound := MeshInstance3D.new()
 	mound.name = "LodgeMound"
 	var mound_mesh := SphereMesh.new()
@@ -428,23 +448,127 @@ func _build_lodge_shell() -> void:
 	var floor_part := _shell_box(LODGE_FLOOR_SIZE, lodge_center + Vector3(0.0, 0.06, 0.0), Color("5b4632"))
 	floor_part.name = "LodgeFloor"
 	_lodge_nodes.append(floor_part)
-	var back_wall := _shell_box(Vector3(1.4, 1.4, 0.16), lodge_center + Vector3(0.0, 0.7, -0.27), Color("6b5138"))
-	_lodge_nodes.append(back_wall)
-	for side_x in [-0.62, 0.62]:
-		var side_wall := _shell_box(Vector3(0.16, 1.4, 0.7), lodge_center + Vector3(side_x, 0.7, 0.0), Color("5f4932"))
-		_lodge_nodes.append(side_wall)
-	var front_base := _shell_box(Vector3(1.4, 0.12, 0.16), lodge_center + Vector3(0.0, 0.06, 0.27), Color("4f3d2c"))
+	# Rounded mud-and-stick shell instead of a rectangular cabin. The front
+	# stays open so the two build positions and the entrance remain readable.
+	for spec in [
+		[Vector3(0.0, 0.38, -0.55), Vector3(2.2, 1.15, 1.5), Color("5c4935")],
+		[Vector3(-0.85, 0.30, -0.20), Vector3(1.1, 0.90, 0.9), Color("634d38")],
+		[Vector3(0.85, 0.30, -0.20), Vector3(1.1, 0.90, 0.9), Color("5a4733")],
+		[Vector3(0.0, 0.84, -0.35), Vector3(1.6, 0.50, 1.15), Color("5e4a36")],
+		[Vector3(-0.55, 0.20, 0.08), Vector3(0.55, 0.55, 0.50), Color("4f3d2c")],
+		[Vector3(0.55, 0.20, 0.08), Vector3(0.55, 0.55, 0.50), Color("4a392a")],
+	]:
+		var offset: Vector3 = spec[0]
+		var lobe_size: Vector3 = spec[1]
+		var lobe_color: Color = spec[2]
+		var lobe := _lodge_blob(lobe_size, lobe_color, lodge_center + offset)
+		lobe.name = "LodgeShell%d" % _lodge_nodes.size()
+		_lodge_nodes.append(lobe)
+	var moss_cap := _lodge_blob(Vector3(1.4, 0.24, 1.0), Color("5f7048"), lodge_center + Vector3(0.0, 0.95, -0.30))
+	moss_cap.name = "LodgeMossCap"
+	_lodge_nodes.append(moss_cap)
+	var front_base := _shell_box(Vector3(1.15, 0.26, 0.14), lodge_center + Vector3(0.0, 0.16, 0.28), Color("4f3d2c"))
 	_lodge_nodes.append(front_base)
-	var door := _shell_box(Vector3(0.52, 0.18, 0.06), lodge_center + Vector3(0.0, 0.21, 0.36), Color("2f241b"))
+	var door := _shell_box(Vector3(0.52, 0.14, 0.06), lodge_center + Vector3(0.0, 0.10, 0.36), Color("2f241b"))
 	door.name = "LodgeEntrance"
 	_lodge_nodes.append(door)
-	_window = _shell_box(Vector3(0.3, 0.3, 0.06), lodge_center + Vector3(0.76, 0.85, 0.0), Color("ffd978"))
+	# A second, dark opening above the waterline gives the lodge a readable
+	# front while the original entrance stays submerged.
+	var opening := _shell_box(Vector3(0.50, 0.38, 0.07), lodge_center + Vector3(0.0, 0.86, 0.36), Color("2a2119"))
+	opening.name = "LodgeOpening"
+	_lodge_nodes.append(opening)
+	_window = _shell_box(Vector3(0.24, 0.24, 0.06), lodge_center + Vector3(0.55, 0.62, 0.40), Color("ffd978"))
 	var window_material := _window.mesh.material as StandardMaterial3D
 	window_material.emission_enabled = true
 	window_material.emission = Color("ffcf45")
 	window_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_window.name = "LodgeWindow"
 	_window.visible = false
+
+
+func _build_slope_sticks() -> void:
+	var water := _terrain.full_water_level() if _terrain != null else 0.0
+	for index in range(14):
+		var angle := TAU * float(index) / 14.0 + 0.16
+		var base := Vector3(lodge_center.x + cos(angle) * 1.0, water - 0.06, lodge_center.z + sin(angle) * 0.68)
+		var top := Vector3(lodge_center.x + cos(angle) * 0.42, lodge_center.y + 1.02, lodge_center.z + sin(angle) * 0.28)
+		var stick := _stick_between(base, top, 0.034, Color("82532f") if index % 2 == 0 else Color("6d4829"))
+		stick.name = "LodgeStick%d" % index
+		_lodge_nodes.append(stick)
+	# Woven horizontal sticks around the shell break the smooth lobe silhouette.
+	for level in [0.28, 0.58]:
+		var level_value: float = level
+		var radius_x := 1.02 - level_value * 0.35
+		var radius_z := 0.72 - level_value * 0.25
+		var height := lodge_center.y + level_value
+		for index in range(6):
+			var angle_0 := TAU * float(index) / 6.0 + level_value
+			var angle_1 := TAU * float(index + 1) / 6.0 + level_value
+			var from := Vector3(lodge_center.x + cos(angle_0) * radius_x, height, lodge_center.z + sin(angle_0) * radius_z)
+			var to := Vector3(lodge_center.x + cos(angle_1) * radius_x, height, lodge_center.z + sin(angle_1) * radius_z)
+			var weave := _stick_between(from, to, 0.025, Color("7a5332"))
+			weave.name = "LodgeWeave%d_%d" % [int(level_value * 100.0), index]
+			_lodge_nodes.append(weave)
+	for spot in [Vector3(-0.60, 0.60, 0.0), Vector3(0.50, 0.68, -0.20), Vector3(0.0, 0.82, 0.18)]:
+		var moss := _lodge_blob(Vector3(0.36, 0.10, 0.28), Color("6f7d4e"), lodge_center + spot)
+		moss.name = "LodgeMossPatch"
+		_lodge_nodes.append(moss)
+
+
+func _build_snow_cap() -> void:
+	_snow_cap = Node3D.new()
+	_snow_cap.name = "LodgeSnowCap"
+	_snow_cap.position = roof_slot_position
+	add_child(_snow_cap)
+	for spec in [
+		[Vector3(0.0, 0.30, 0.0), Vector3(1.74, 0.20, 1.16)],
+		[Vector3(0.0, 0.42, -0.12), Vector3(1.18, 0.16, 0.64)],
+		[Vector3(0.0, 0.16, 0.48), Vector3(1.26, 0.13, 0.44)],
+	]:
+		var blob := MeshInstance3D.new()
+		var mesh := SphereMesh.new()
+		mesh.radius = 0.5
+		mesh.height = 1.0
+		mesh.radial_segments = 12
+		mesh.rings = 5
+		mesh.material = Shapes.material(Color("f2f7fb"))
+		blob.mesh = mesh
+		blob.position = spec[0]
+		blob.scale = spec[1]
+		blob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_snow_cap.add_child(blob)
+
+
+func _stick_between(from: Vector3, to: Vector3, radius: float, color: Color) -> MeshInstance3D:
+	var stick := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius * 0.8
+	mesh.bottom_radius = radius
+	mesh.height = from.distance_to(to)
+	mesh.radial_segments = 6
+	mesh.material = Shapes.material(color)
+	stick.mesh = mesh
+	stick.position = (from + to) * 0.5
+	stick.quaternion = Quaternion(Vector3.UP, (to - from).normalized())
+	stick.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(stick)
+	return stick
+
+
+func _lodge_blob(size: Vector3, color: Color, at: Vector3) -> MeshInstance3D:
+	var blob := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.5
+	mesh.height = 1.0
+	mesh.radial_segments = 12
+	mesh.rings = 6
+	mesh.material = Shapes.material(color)
+	blob.mesh = mesh
+	blob.scale = size
+	blob.position = at
+	blob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	add_child(blob)
+	return blob
 
 
 func _shell_box(size: Vector3, at: Vector3, color: Color) -> MeshInstance3D:
@@ -543,6 +667,9 @@ func _build_completion_sparkles() -> void:
 
 
 func _show_completion() -> void:
+	for part in parts:
+		if part.state != HomePart.State.PLACED:
+			part.visible = false
 	if _window != null:
 		_window.visible = true
 	for index in range(_completion_sparkles.size()):

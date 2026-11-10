@@ -108,11 +108,16 @@ func _run() -> void:
 					var bed_height: float = world.terrain.height_at(sample_xz)
 					maximum_bed_height = maxf(maximum_bed_height, bed_height)
 			_expect(floor_top + 0.015 >= maximum_bed_height, "Lodge floor is buried across its footprint (floor %.3f, highest sampled bed %.3f)." % [floor_top, maximum_bed_height])
-			_expect(floor_top < world.terrain.initial_water_level(), "Lodge floor is not below the initial water surface.")
+			_expect(floor_top < world.terrain.full_water_level(), "Lodge floor is not below the full lake surface.")
 		if entrance != null and entrance.mesh is BoxMesh:
 			var entrance_mesh := entrance.mesh as BoxMesh
 			var entrance_top: float = entrance.global_position.y + entrance_mesh.size.y * 0.5
-			_expect(entrance_top < world.terrain.initial_water_level(), "The lodge entrance is not fully submerged at the initial water level.")
+			_expect(entrance_top < world.terrain.full_water_level(), "The lodge entrance is not fully submerged below the full lake surface.")
+		var opening := home.get_node_or_null("LodgeOpening") as MeshInstance3D
+		_expect(opening != null, "The lodge has no visible above-water opening.")
+		if opening != null:
+			_expect(opening.global_position.y > world.terrain.full_water_level(), "The lodge opening is not above the full lake surface.")
+		_expect(home.get_node_or_null("LodgeSnowCap") != null and not home.call("is_snow_visible"), "The lodge snow cap should stay hidden outside winter.")
 		_expect(home.call("get_slot_position", 0).z > lodge_center.z, "The wall position does not face the camera on the lake side.")
 		_expect(home.call("get_slot_position", 1).y > home.call("get_slot_position", 0).y, "The roof position is not above the wall position.")
 		for slot_index in range(2):

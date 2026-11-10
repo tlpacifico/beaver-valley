@@ -47,6 +47,7 @@ const HUD_OUTLINE := Color(0.0, 0.0, 0.0, 0.85)
 var _terrain: ValleyTerrain
 var _layout: ValleyLayout
 var _terrain_mesh: MeshInstance3D
+var _terrain_skirt: MeshInstance3D
 var _water_mesh: MeshInstance3D
 var _route_overlay: Node3D
 var _route_ribbon: MeshInstance3D
@@ -140,6 +141,11 @@ func _build_world_nodes() -> void:
 	_terrain_mesh.name = "TerrainMesh"
 	_terrain_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	add_child(_terrain_mesh)
+
+	_terrain_skirt = MeshInstance3D.new()
+	_terrain_skirt.name = "TerrainSkirt"
+	_terrain_skirt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_terrain_skirt)
 
 	_water_mesh = MeshInstance3D.new()
 	_water_mesh.name = "WaterMesh"
@@ -244,6 +250,7 @@ func _apply_variant(new_variant: StringName) -> void:
 	_terrain.configure(_active_variant)
 	_layout.configure(_terrain)
 	_terrain_mesh.mesh = _terrain.terrain_mesh()
+	_terrain_skirt.mesh = _terrain.boundary_skirt_mesh()
 	_water_mesh.mesh = _terrain.water_mesh(_terrain.initial_water_level())
 	_rebuild_stage_volumes()
 	_rebuild_route_overlay()

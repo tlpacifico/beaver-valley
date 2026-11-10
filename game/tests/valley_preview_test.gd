@@ -37,6 +37,11 @@ func _run() -> void:
 	if water_mesh != null and water_mesh.mesh is ArrayMesh:
 		_expect((water_mesh.mesh as ArrayMesh).get_surface_count() > 0, "Initial water mesh is empty.")
 
+	var skirt := preview.get_node_or_null("TerrainSkirt") as MeshInstance3D
+	_expect(skirt != null, "Preview must expose the terrain boundary skirt.")
+	if skirt != null and skirt.mesh is ArrayMesh:
+		_expect((skirt.mesh as ArrayMesh).get_surface_count() > 0, "Terrain boundary skirt is empty.")
+
 	for overlay_name in ["RouteOverlay", "BlockedOverlay", "MaxWaterOverlay"]:
 		var overlay := preview.get_node_or_null(overlay_name) as Node3D
 		_expect(overlay != null, "Missing overlay: %s" % overlay_name)

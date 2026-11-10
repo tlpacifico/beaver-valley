@@ -82,6 +82,13 @@ func _check_variant(variant: StringName) -> void:
 	_expect(full_mesh.get_surface_count() > 0, "%s full water mesh is empty." % variant)
 	if initial_mesh.get_surface_count() > 0 and full_mesh.get_surface_count() > 0:
 		_expect(full_mesh.surface_get_array_len(0) > initial_mesh.surface_get_array_len(0), "%s full lake must cover more ground than the initial marsh." % variant)
+	_expect(is_equal_approx(terrain.water_surface_height_at(lake_center, terrain.full_water_level()), terrain.full_water_level()), "%s lake surface does not follow the full level." % variant)
+	_expect(is_equal_approx(terrain.water_surface_height_at(Vector2(terrain.river_center_x(0.0), 0.0), terrain.full_water_level()), terrain.initial_water_level()), "%s downstream surface was raised with the lake." % variant)
+
+	var skirt: ArrayMesh = terrain.boundary_skirt_mesh()
+	_expect(skirt.get_surface_count() > 0, "%s terrain boundary skirt is empty." % variant)
+	if skirt.get_surface_count() > 0:
+		_expect(skirt.get_aabb().position.y <= -1.0, "%s terrain boundary skirt does not extend below the relief." % variant)
 
 	var terrain_mesh: ArrayMesh = terrain.terrain_mesh()
 	_expect(terrain_mesh.get_surface_count() > 0, "%s terrain mesh is empty." % variant)

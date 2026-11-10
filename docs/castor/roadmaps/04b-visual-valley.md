@@ -2,7 +2,7 @@
 
 [Overall roadmap](../roadmap.md) · Previous: [complete chapter](04-chapter.md) · Next: [MVP](05-mvp.md)
 
-**Status:** planned; added at the author's request on 9 November 2026. No visual acceptance or device validation is implied by this plan.
+**Status:** in progress: R1–R5 automated and desktop evidence is implemented and tested on 10 November 2026, including save fixtures and a runnable Windows export. Author visual acceptance, adult rehearsal, Android and child observation remain pending. No Android or child validation is implied by this plan.
 
 **Goal:** make the playable valley recognizable as the world proposed by [valley-map-v3.svg](../mockups/valley-map-v3.svg), while preserving the complete chapter and existing progress.
 
@@ -18,7 +18,7 @@ Milestone 4 implemented the chapter's actions, saving and ending. The resulting 
 
 ## Relief direction update
 
-The author accepted the first tree integration but identified that the flat scene still reads as a board game. The [playable valley relief plan](../valley-relief-plan.md) now details V1/V2 and the related stage integration: enclosing hills, real traversable slopes, an excavated channel and a lake basin. The v3 map continues to guide palette and spatial relationships, but its flat raised slab is deliberately not the terrain target. The author accepted the `wide_bank` landform and perspective camera in R1 and the isolated slope traversal in R2 on 10 November 2026. The next step is R3: bring the accepted terrain, collision and navigation into the chapter, which is the V2 work below.
+The author accepted the first tree integration but identified that the flat scene still reads as a board game. The [playable valley relief plan](../valley-relief-plan.md) now details V1/V2 and the related stage integration: enclosing hills, real traversable slopes, an excavated channel and a lake basin. The v3 map continues to guide palette and spatial relationships, but its flat raised slab is deliberately not the terrain target. The author accepted the `wide_bank` landform and perspective camera in R1 and the isolated slope traversal in R2 on 10 November 2026. R3 brought the terrain, collision and navigation into the chapter. R4 now supplies prepared water states, a readable cache, terrain-aligned snow and a less abrupt outer boundary; see the R4 status below. R5 owns save fixtures, the installed build and human validation.
 
 ## Visual contract
 
@@ -84,7 +84,7 @@ Follow R2–R4 of the [relief plan](../valley-relief-plan.md), including height-
 Depends on the V1 composition checkpoint.
 
 - [x] Integrate terrain boundaries, river banks and the dam into the playable scene; remove or reposition prototype obstacles that conflict with the accepted geography while retaining useful movement challenges. **R3 removed the flat ground, walls and central rock; no replacement obstacle was added yet.**
-- [ ] Build prepared initial, intermediate and complete water states. Show upstream accumulation caused by the dam; preserve the downstream channel and the chosen dam finish. **R3 swaps terrain water meshes at the three authored levels; R4 owns the visual water behaviour.**
+- [x] Build prepared initial, intermediate and complete water states. Show upstream accumulation caused by the dam; preserve the downstream channel and the chosen dam finish. **R4 separates the upstream lake from the fixed downstream stream, clips the shore to the terrain and raises the lake with a short prepared-surface animation.**
 - [x] Update navigation, collision and approach points together. Keep reachable bank positions for collection, lodge assembly and food storage at every water level. **Initial and full water footprints both drive navigation solidity.**
 - [x] Update ray targets and selection cues to match the visible objects. Recheck taps near the bank, overlapping objects, the lodge roof and wall, and the screen edges.
 - [ ] Exercise movement retargeting and item swapping beside water and obstacles. Ensure the actor cannot be sent across unsupported water, become stranded by a water transition or clip through the terrain boundary. **Water refusal and retargeting are tested; swapping beside water and a water transition remain.**
@@ -92,7 +92,11 @@ Depends on the V1 composition checkpoint.
 
 **Deliverable:** the dam visibly changes a river into an upstream lake, with the entire chapter still traversable. A nice screenshot with broken routes does not satisfy this task.
 
-**R3 status:** the terrain chapter, routes, real-ray selection and grounded stage anchors are integrated and the full chapter passes its tests. R4 remains for the prepared water and winter presentation.
+**R3 status:** the terrain chapter, routes, real-ray selection and grounded stage anchors are integrated and the full chapter passes its tests. R4 now supplies the prepared water and winter presentation.
+
+**R4 status:** `ValleyLake` rises upstream through two prepared levels while `ValleyStream` stays at the initial level; the shore is clipped against the terrain instead of a grid staircase. The dam has a horizontal brush-and-mud crest, abutments, a spillway and a branch flight from the bank cue. The food cache has a clear-water window, a surface marker and a visible submerged basket. Snow patches align to the terrain, the lodge roof and dam carry snow, and the family stands on dry bank. The outer edge has a soil/grass skirt and two layers of distant hills. `./tools/castor.ps1 check` passes, including the new `valley_water_test`. A backdrop seam remains in some views, and none of the water, cache, snow or boundary work has real-device, child or author acceptance yet.
+
+**R5 status:** the automated/desktop part is complete. `save_fixture_test.gd` restores schema 1 and schema 2 fixtures for partial dam, both finishes, partial home, partial food and winter without rewriting the save file; the slope-speed measurement records 1233 ms uphill and downhill against 1219 ms expected for the same 3.41 m route. The Windows debug export ran all capture modes at 960 × 600 and was inspected in `builds/relief/r5_exported_sheet.png`. Independent validation returned PASS WITH FINDINGS; the branch-flight orientation defect and the main presentation findings were fixed. `adb devices` found no phone, so Android, author acceptance, the adult rehearsal and child observation are still open.
 
 ## V3 — Establish a coherent visual set
 
@@ -108,27 +112,29 @@ Depends on the V1 composition checkpoint.
 
 ## V4 — Integrate home, food and winter into the valley
 
-- [ ] Refine the lodge into a recognizable beaver home on its mound, retaining two clear build positions and meaningful visible differences between chosen parts.
-- [ ] Place loose home parts and food bundles in intentional shore collection areas. Keep suitable and thin bundles visually distinguishable and their target reachable.
-- [ ] Make the food pile readable in the water beside the lodge without relying on the progress counter.
-- [ ] Place the owl's help cues and the otter's lake celebration where they support the current action without obstructing taps or the camera.
-- [ ] Integrate snow, family placement and winter lighting with the same geography. Keep the finished dam, lodge and food visible when revisiting the valley.
-- [ ] Restore representative existing saves: partial dam, completed dam with each finish, partially built home, partial food and completed winter. Confirm placements use the new layout and carried/reserved items recover safely.
-- [ ] Verify that existing save failure warnings and protected restart behavior still work after all transitions.
+- [x] Refine the lodge into a recognizable beaver home on its mound, retaining two clear build positions and meaningful visible differences between chosen parts. **R4 raises the mound and floor to the full lake; the final shell has several mud-and-stick lobes, a front opening and woven sticks. Author acceptance is pending.**
+- [x] Place loose home parts and food bundles in intentional shore collection areas. Keep suitable and thin bundles visually distinguishable and their target reachable. **The cache has its own dry approach and clear-water window.**
+- [x] Make the food pile readable in the water beside the lodge without relying on the progress counter. **Surface marker, submerged basket and bundle centres below the surface are visible in the overview capture.**
+- [x] Place the owl's help cues and the otter's lake celebration where they support the current action without obstructing taps or the camera. **The otter now sits on the full lake surface.**
+- [x] Integrate snow, family placement and winter lighting with the same geography. Keep the finished dam, lodge and food visible when revisiting the valley. **Snow patches align to the terrain, the roof and dam carry snow, the family stands on dry bank and the cache stays visible.**
+- [x] Restore representative existing saves: partial dam, completed dam with each finish, partially built home, partial food and completed winter. Confirm placements use the new layout and carried/reserved items recover safely. **R5 covers every stage and both finishes with isolated schema 1 and schema 2 fixtures; carried/reserved items are never saved.**
+- [x] Verify that existing save failure warnings and protected restart behavior still work after all transitions. **The home, food, ending and restart checks still cover the forced save failure.**
 
 **Deliverable:** each stage belongs to the same valley, and previous progress survives the visual upgrade. No new save schema is required solely for moving scenery; justify and test migration if a later implementation decision actually requires one.
 
+**Validation follow-up:** the independent review returned PASS WITH FINDINGS. The branch-flight orientation defect is fixed, placed material order uses an explicit slot index, the cache centres are below the surface, the finish is a short crest accent instead of a repainted full log, and completion messages have a readable band. A second marker now sits on the dam crest, snow patches are clustered, the distant hills are lighter with a sparse far-edge bush line, and the lodge uses a rounded multi-lobe shell with a front opening. The backdrop seam, bank-side approach cue, surface-basket readability and author acceptance of the new lodge remain open.
+
 ## V5 — Validate the complete visual valley
 
-- [ ] Run `./tools/castor.ps1 check` and resolve relevant failures. Tests must verify behavior rather than simply repeating new coordinate constants.
-- [ ] Export Windows and inspect the installed/runnable build at the actual play resolution; capture initial, partial dam, lake, lodge, food and winter from the same overview camera.
+- [x] Run `./tools/castor.ps1 check` and resolve relevant failures. Tests must verify behavior rather than simply repeating new coordinate constants. **Passed on 10 November 2026, including the new water test.**
+- [x] Export Windows and inspect the installed/runnable build at the actual play resolution; capture initial, partial dam, lake, lodge, food and winter from the same overview camera. **R5 exported and ran the debug build; all six views are 960 × 600 and inspected in `r5_exported_sheet.png`.**
 - [ ] Compare these views with the visual contract and obtain the author's acceptance. Record concrete differences that are intentional and any remaining fixes.
 - [ ] Run the outstanding adult rehearsal of about 15 minutes on the chosen priority device, covering movement, taps, collection, all stages, suspend/focus changes and resume. Record device, resolution, frame-time observations and Android heating where applicable.
-- [ ] If Android is to be marked validated, install and run on the real phone. Exporting or checking a phone-shaped viewport is insufficient. If unavailable, record the device gate as pending.
+- [ ] If Android is to be marked validated, install and run on the real phone. Exporting or checking a phone-shaped viewport is insufficient. If unavailable, record the device gate as pending. **R5: `adb devices` found no attached phone; gate pending.**
 - [ ] Observe a short, voluntary play session with the child: can she find branches, recognize where to build and see the effect on the valley? Record adult help needed and visual confusion without requiring her to finish in one sitting.
 - [ ] Update the environment/character tracks and inventory from observed work. Carry unrelated voice, device and gameplay validation items forward explicitly.
 
-**Deliverable:** a playable, reviewed valley with recorded technical and human evidence, plus a short list of genuine finishing tasks for milestone 5.
+**Deliverable:** a playable, reviewed valley with recorded technical and human evidence, plus a short list of genuine finishing tasks for milestone 5. **Automated and runnable-build evidence is recorded; the review still needs the author, the adult rehearsal, Android and the child.**
 
 ## Completion gate and handoff to milestone 5
 

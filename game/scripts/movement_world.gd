@@ -32,6 +32,7 @@ var layout: ValleyLayout
 var navigation: ValleyNavigation
 var terrain_mesh: MeshInstance3D
 var terrain_collision: StaticBody3D
+var terrain_skirt: MeshInstance3D
 var destination: MeshInstance3D
 var status: Label
 var click_pending: bool = false
@@ -43,13 +44,21 @@ var placement_pending: bool = false
 var placed_count: int = 0
 var placement_center := Vector3(2.5, 0.0, -4.4)
 var water_surface: MeshInstance3D
+var stream_surface: MeshInstance3D
+var water_level: float = 0.0
+var water_rise_tween: Tween
+var sun: DirectionalLight3D
+var world_environment: WorldEnvironment
+var sky_material: ProceduralSkyMaterial
 var visual_environment: VisualEnvironment
 var support_characters: Node3D
 var placement_area: Area3D
 var branch_cues: Array[MeshInstance3D] = []
 var placement_cue: MeshInstance3D
+var dam_target_cue: MeshInstance3D
 var finish_trim: MeshInstance3D
 var completion_feedback: Label
+var message_band: ColorRect
 var home_completion_feedback: Label
 var home_invite: Label
 var home_stage: HomeStage
@@ -97,7 +106,8 @@ func _ready() -> void:
 	terrain.configure(&"wide_bank")
 	layout = LayoutScript.new()
 	layout.configure(terrain)
-	placement_center = Vector3(terrain.river_center_x(terrain.dam_z()), terrain.initial_water_level(), terrain.dam_z())
+	var dam_center := layout.dam_center()
+	placement_center = Vector3(dam_center.x, dam_center.y - 0.14, dam_center.z)
 	navigation = NavigationScript.new()
 	navigation.configure(terrain)
 	terrain_mesh = MeshInstance3D.new()
@@ -105,13 +115,25 @@ func _ready() -> void:
 	terrain_mesh.mesh = terrain.terrain_mesh()
 	terrain_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	add_child(terrain_mesh)
+	terrain_skirt = MeshInstance3D.new()
+	terrain_skirt.name = "ValleyBoundarySkirt"
+	terrain_skirt.mesh = terrain.boundary_skirt_mesh()
+	terrain_skirt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(terrain_skirt)
 	terrain_collision = terrain.build_collision_body("ValleyCollision")
 	add_child(terrain_collision)
+	var clear_cache_xz := layout.food_cache_xz()
+	water_level = terrain.initial_water_level()
 	water_surface = MeshInstance3D.new()
-	water_surface.name = "ValleyWater"
-	water_surface.mesh = terrain.water_mesh(terrain.initial_water_level())
+	water_surface.name = "ValleyLake"
+	water_surface.mesh = terrain.water_mesh_reach(water_level, true, clear_cache_xz, 1.15)
 	water_surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(water_surface)
+	stream_surface = MeshInstance3D.new()
+	stream_surface.name = "ValleyStream"
+	stream_surface.mesh = terrain.water_mesh_reach(terrain.initial_water_level(), false)
+	stream_surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(stream_surface)
 	var branch_spots: Array[Vector2] = [Vector2(3.2, 3.0), Vector2(0.8, 3.2), Vector2(2.6, 1.0), Vector2(0.2, 1.2), Vector2(4.2, 2.0)]
 	var branch_kinds: Array[CollectibleBranch.Kind] = [CollectibleBranch.Kind.THICK, CollectibleBranch.Kind.ROTTEN, CollectibleBranch.Kind.NORMAL, CollectibleBranch.Kind.NORMAL, CollectibleBranch.Kind.NORMAL]
 	for branch_index in range(branch_spots.size()):
@@ -163,19 +185,26 @@ func _ready() -> void:
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov = CAMERA_FOV
 	camera.current = true
-	var sun := DirectionalLight3D.new()
+	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-60, -25, 0)
 	sun.light_energy = 0.85
 	sun.shadow_enabled = true
 	add_child(sun)
-	var world := WorldEnvironment.new()
-	world.environment = Environment.new()
-	world.environment.background_mode = Environment.BG_COLOR
-	world.environment.background_color = Color("162a30")
-	world.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	world.environment.ambient_light_color = Color("d4e4e0")
-	world.environment.ambient_light_energy = 0.45
-	add_child(world)
+	world_environment = WorldEnvironment.new()
+	world_environment.environment = Environment.new()
+	var sky := Sky.new()
+	sky_material = ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color("5f8fa8")
+	sky_material.sky_horizon_color = Color("cfe0cf")
+	sky_material.ground_horizon_color = Color("9db6a0")
+	sky_material.ground_bottom_color = Color("2a3f3c")
+	sky.sky_material = sky_material
+	world_environment.environment.background_mode = Environment.BG_SKY
+	world_environment.environment.sky = sky
+	world_environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	world_environment.environment.ambient_light_color = Color("d4e4e0")
+	world_environment.environment.ambient_light_energy = 0.45
+	add_child(world_environment)
 	_build_interface()
 	voice = VoiceScript.new()
 	voice.name = "ProvisionalVoice"
@@ -194,7 +223,11 @@ func _ready() -> void:
 	food_stage.placed.connect(_on_food_placed)
 	food_stage.completed.connect(_on_food_completed)
 	food_stage.activated.connect(_on_food_activated)
-	var capture_mode := "--capture-initial" in OS.get_cmdline_user_args() or "--capture-home" in OS.get_cmdline_user_args() or "--capture-food" in OS.get_cmdline_user_args() or "--capture-ending" in OS.get_cmdline_user_args()
+	var capture_mode := "--capture-initial" in OS.get_cmdline_user_args() or "--capture-home" in OS.get_cmdline_user_args() or "--capture-food" in OS.get_cmdline_user_args() or "--capture-ending" in OS.get_cmdline_user_args() or "--capture-water" in OS.get_cmdline_user_args()
+	if "--fresh-save" in OS.get_cmdline_user_args():
+		# Interactive playtest from the beginning, isolated from the normal save.
+		save_directory = "user://playtest_save/"
+		DamSave.clear_save(save_directory)
 	if capture_mode:
 		# Debug captures must never alter the player's chapter save.
 		save_directory = "user://capture_save/"
@@ -208,6 +241,8 @@ func _ready() -> void:
 		_capture_food()
 	elif "--capture-home" in OS.get_cmdline_user_args():
 		_capture_home()
+	elif "--capture-water" in OS.get_cmdline_user_args():
+		_capture_water()
 	elif "--capture-initial" in OS.get_cmdline_user_args():
 		_capture_initial()
 	elif "--capture-movement" in OS.get_cmdline_user_args():
@@ -243,6 +278,14 @@ func _build_interface() -> void:
 	food_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	food_progress.visible = false
 	layer.add_child(food_progress)
+	message_band = ColorRect.new()
+	message_band.name = "MessageBand"
+	message_band.position = Vector2(0, 460)
+	message_band.size = Vector2(960, 140)
+	message_band.color = Color(0.035, 0.065, 0.075, 0.38)
+	message_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	message_band.visible = false
+	layer.add_child(message_band)
 	completion_feedback = Label.new()
 	completion_feedback.name = "CompletionFeedback"
 	completion_feedback.text = "Fizeste uma represa!"
@@ -250,6 +293,8 @@ func _build_interface() -> void:
 	completion_feedback.size = Vector2(960, 80)
 	completion_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	completion_feedback.add_theme_font_size_override("font_size", 42)
+	completion_feedback.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.05, 0.9))
+	completion_feedback.add_theme_constant_override("outline_size", 6)
 	completion_feedback.add_theme_color_override("font_color", Color("fff0a3"))
 	completion_feedback.visible = false
 	completion_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -257,10 +302,12 @@ func _build_interface() -> void:
 	home_invite = Label.new()
 	home_invite.name = "HomeInvite"
 	home_invite.text = "Agora vamos construir a casa!"
-	home_invite.position = Vector2(0, 470)
+	home_invite.position = Vector2(0, 420)
 	home_invite.size = Vector2(960, 40)
 	home_invite.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	home_invite.add_theme_font_size_override("font_size", 24)
+	home_invite.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.05, 0.9))
+	home_invite.add_theme_constant_override("outline_size", 4)
 	home_invite.visible = false
 	home_invite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(home_invite)
@@ -271,6 +318,8 @@ func _build_interface() -> void:
 	home_completion_feedback.size = Vector2(960, 70)
 	home_completion_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	home_completion_feedback.add_theme_font_size_override("font_size", 38)
+	home_completion_feedback.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.05, 0.9))
+	home_completion_feedback.add_theme_constant_override("outline_size", 6)
 	home_completion_feedback.add_theme_color_override("font_color", Color("fff0a3"))
 	home_completion_feedback.visible = false
 	home_completion_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -282,6 +331,8 @@ func _build_interface() -> void:
 	food_completion_feedback.size = Vector2(960, 70)
 	food_completion_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	food_completion_feedback.add_theme_font_size_override("font_size", 38)
+	food_completion_feedback.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.05, 0.9))
+	food_completion_feedback.add_theme_constant_override("outline_size", 6)
 	food_completion_feedback.add_theme_color_override("font_color", Color("fff0a3"))
 	food_completion_feedback.visible = false
 	food_completion_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -454,7 +505,7 @@ func _physics_process(_delta: float) -> void:
 				_update_branch_cues()
 				return
 			actor.play_place_action()
-			carried_branch.place(self, placement_center, placed_count)
+			carried_branch.place(self, placement_center, placed_count, true)
 			carried_branch = null
 			_update_obstacle_controls()
 			placed_count += 1
@@ -488,6 +539,8 @@ func _physics_process(_delta: float) -> void:
 func _process(delta: float) -> void:
 	if camera_follow_enabled and actor != null and camera != null:
 		_update_follow_camera(delta)
+	if message_band != null and completion_feedback != null:
+		message_band.visible = completion_feedback.visible or home_completion_feedback.visible or food_completion_feedback.visible
 
 
 func _update_follow_camera(delta: float) -> void:
@@ -661,15 +714,25 @@ func request_move(world_position: Vector3) -> bool:
 func _build_placement_target() -> void:
 	var bank_spot: Vector3 = layout.anchor(&"dam_approach")
 	placement_cue = _add_ground_ring(bank_spot, 0.9, Color("ffe17d"))
+	dam_target_cue = MeshInstance3D.new()
+	dam_target_cue.name = "DamTargetCue"
+	var dam_ring := TorusMesh.new()
+	dam_ring.inner_radius = 0.34
+	dam_ring.outer_radius = 0.48
+	dam_ring.material = Shapes.material(Color("ffe17d"))
+	dam_target_cue.mesh = dam_ring
+	dam_target_cue.position = placement_center + Vector3(0.0, 0.30, 0.0)
+	dam_target_cue.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(dam_target_cue)
 	var finish_mesh := BoxMesh.new()
-	finish_mesh.size = Vector3(3.0, 0.08, 0.14)
+	finish_mesh.size = Vector3(1.4, 0.07, 0.12)
 	var finish_material := StandardMaterial3D.new()
 	finish_material.albedo_color = Color("d6a83e")
 	finish_mesh.material = finish_material
 	finish_trim = MeshInstance3D.new()
 	finish_trim.name = "DamFinishTrim"
 	finish_trim.mesh = finish_mesh
-	finish_trim.position = placement_center + Vector3(0, 0.55, 0.0)
+	finish_trim.position = placement_center + Vector3(0, 0.36, 0.0)
 	finish_trim.visible = false
 	add_child(finish_trim)
 	placement_area = Area3D.new()
@@ -731,11 +794,68 @@ func request_place() -> bool:
 	return true
 
 
-func _update_water() -> void:
+func _update_water(animate: bool = true) -> void:
+	if water_surface == null or terrain == null or layout == null:
+		return
 	var levels: Array[float] = [terrain.initial_water_level(), terrain.intermediate_water_level(), terrain.full_water_level(), terrain.full_water_level()]
-	water_surface.mesh = terrain.water_mesh(levels[mini(placed_count, 3)])
+	var target: float = levels[mini(placed_count, 3)]
+	var previous := water_level
+	water_level = target
+	var clear_cache_xz := layout.food_cache_xz()
+	water_surface.mesh = terrain.water_mesh_reach(target, true, clear_cache_xz, 1.15)
+	if stream_surface != null:
+		stream_surface.mesh = terrain.water_mesh_reach(terrain.initial_water_level(), false)
+	if animate and target > previous + 0.001 and is_inside_tree():
+		_animate_water_rise(previous, target)
+	else:
+		if water_rise_tween != null:
+			water_rise_tween.kill()
+			water_rise_tween = null
+		water_surface.position.y = 0.0
 	if visual_environment != null:
 		visual_environment.set_dam_state(placed_count, finish_choice)
+		visual_environment.set_water_level(target)
+	if food_stage != null:
+		food_stage.set_water_level(target)
+
+
+## The upstream mesh is authored at its target level. Offsetting it to the old
+## level and lifting it floods the new shore progressively while the downstream
+## stream mesh stays at the initial level.
+func _animate_water_rise(previous: float, target: float) -> void:
+	if water_rise_tween != null:
+		water_rise_tween.kill()
+	water_surface.position.y = previous - target
+	water_rise_tween = create_tween()
+	water_rise_tween.tween_property(water_surface, "position:y", 0.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_spawn_water_ripples(target)
+
+
+func _spawn_water_ripples(level: float) -> void:
+	var lake := terrain.lake_center()
+	var spots: Array[Vector2] = [lake, lake + Vector2(0.9, 0.6), lake + Vector2(-1.1, 0.2)]
+	for spot in spots:
+		var ring := MeshInstance3D.new()
+		var torus := TorusMesh.new()
+		torus.inner_radius = 0.22
+		torus.outer_radius = 0.30
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(0.92, 0.97, 0.94, 0.62)
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		torus.material = material
+		ring.mesh = torus
+		ring.position = Vector3(spot.x, level + 0.03, spot.y)
+		ring.scale = Vector3.ONE * 0.25
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(ring)
+		var tween := create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(ring, "scale", Vector3.ONE * 2.6, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		tween.tween_property(ring, "position:y", level + 0.02, 0.9)
+		tween.tween_property(material, "albedo_color:a", 0.0, 0.9).set_trans(Tween.TRANS_SINE)
+		tween.chain().tween_callback(ring.queue_free)
 
 
 func _save_dam_state() -> bool:
@@ -750,7 +870,11 @@ func _save_dam_state() -> bool:
 			bent.append(branch.stable_id)
 		if branch.state == CollectibleBranch.State.PLACED:
 			placed_branches.append(branch)
-	placed_branches.sort_custom(func(a: CollectibleBranch, b: CollectibleBranch) -> bool: return a.position.x < b.position.x)
+	placed_branches.sort_custom(func(a: CollectibleBranch, b: CollectibleBranch) -> bool:
+		if a.placed_slot == b.placed_slot:
+			return a.position.x < b.position.x
+		return a.placed_slot < b.placed_slot
+	)
 	for branch in placed_branches:
 		placed.append(branch.stable_id)
 	var solved: Array[String] = []
@@ -848,6 +972,9 @@ func _on_food_completed() -> void:
 func _show_winter(show_overlay: bool) -> void:
 	winter_active = true
 	winter_scene.set_winter(true)
+	if home_stage != null:
+		home_stage.set_snow(true)
+	_set_winter_lighting(true)
 	completion_feedback.visible = false
 	home_completion_feedback.visible = false
 	food_completion_feedback.visible = false
@@ -861,6 +988,21 @@ func _show_winter(show_overlay: bool) -> void:
 	if show_overlay and not ending_overlay.visible:
 		ending_overlay.visible = true
 		voice.play_event("winter_arrived")
+
+
+## Cool, softer light for the ending. The valley stays readable; this is the
+## same geography, not a separate winter scene.
+func _set_winter_lighting(active: bool) -> void:
+	if sun != null:
+		sun.light_energy = 0.72 if active else 0.85
+		sun.light_color = Color("dbe8ff") if active else Color.WHITE
+	if world_environment != null and world_environment.environment != null:
+		var environment := world_environment.environment
+		environment.ambient_light_color = Color("c9dce8") if active else Color("d4e4e0")
+		environment.ambient_light_energy = 0.52 if active else 0.45
+	if sky_material != null:
+		sky_material.sky_top_color = Color("587c92") if active else Color("5f8fa8")
+		sky_material.sky_horizon_color = Color("c7d7dc") if active else Color("cfe0cf")
 
 
 func _continue_visiting() -> void:
@@ -902,7 +1044,7 @@ func _restore_dam_save() -> void:
 	carried_branch = null
 	pending_branch = null
 	placement_pending = false
-	_update_water()
+	_update_water(false)
 	_update_progress_cue()
 	finish_choice = state["finish_choice"]
 	_update_finish_choices(state["stage_completed"])
@@ -979,6 +1121,9 @@ func _update_branch_cues() -> void:
 	if placement_cue != null:
 		placement_cue.visible = placed_count < DAM_BRANCH_COUNT
 		(placement_cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1") if placement_help_active else Color("ffe17d")
+	if dam_target_cue != null:
+		dam_target_cue.visible = placed_count < DAM_BRANCH_COUNT
+		(dam_target_cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1") if placement_help_active else Color("ffe17d")
 	if placement_area != null:
 		placement_area.collision_layer = 8 if placed_count < DAM_BRANCH_COUNT else 0
 
@@ -1176,6 +1321,7 @@ func _clear_progress_for_restart() -> bool:
 
 
 func _capture_initial() -> void:
+	_set_capture_window_size()
 	# Fresh isolated save: the baseline view before any branch is placed.
 	await get_tree().create_timer(0.6).timeout
 	await RenderingServer.frame_post_draw
@@ -1185,7 +1331,70 @@ func _capture_initial() -> void:
 	get_tree().quit(0 if error == OK else 1)
 
 
+## R4 evidence: the same play camera before the dam, after one and two
+## placements and with the complete lake. Uses the isolated capture save.
+func _capture_water() -> void:
+	_set_capture_window_size()
+	await get_tree().create_timer(0.4).timeout
+	if save_directory != "user://capture_save/":
+		push_error("Water capture refused to use a non-isolated save directory.")
+		get_tree().quit(1)
+		return
+	if not DamSave.clear_save(save_directory):
+		push_error("Water capture could not clear the isolated capture save.")
+		get_tree().quit(1)
+		return
+	placed_count = 0
+	_update_water(false)
+	_update_progress_cue()
+	_update_branch_cues()
+	await get_tree().create_timer(0.2).timeout
+	var ok: bool = await _save_camera_capture("water_initial.png")
+	var thick: CollectibleBranch = branches[0]
+	var first_normal: CollectibleBranch = branches[2]
+	var second_normal: CollectibleBranch = branches[3]
+	thick.gnaw()
+	var sequence: Array[CollectibleBranch] = [thick, first_normal, second_normal]
+	var names: Array[String] = ["water_one.png", "water_two.png", "water_complete.png"]
+	for index in range(sequence.size()):
+		var branch := sequence[index]
+		if branch.state != CollectibleBranch.State.FREE:
+			push_error("Water capture found a branch that was not free: %s." % branch.stable_id)
+			ok = false
+			break
+		branch.place(self, placement_center, placed_count)
+		placed_count += 1
+		_update_water(true)
+		_update_progress_cue()
+		_update_branch_cues()
+		await get_tree().create_timer(1.0).timeout
+		var saved: bool = await _save_camera_capture(names[index])
+		ok = saved and ok
+	if placed_count == DAM_BRANCH_COUNT:
+		home_stage.activate()
+		_update_finish_choices(true)
+		ok = _save_dam_state() and ok
+	if ok:
+		print("CASTOR_GRAPHICS_OK water_capture")
+	get_tree().quit(0 if ok else 1)
+
+
+func _save_camera_capture(file_name: String) -> bool:
+	await RenderingServer.frame_post_draw
+	var error := get_viewport().get_texture().get_image().save_png("user://" + file_name)
+	if error != OK:
+		push_error("Could not save capture %s: %s" % [file_name, error_string(error)])
+	return error == OK
+
+
+func _set_capture_window_size() -> void:
+	# Captures are compared at the 960 × 600 reference view even if the window
+	# manager remembered a different size.
+	DisplayServer.window_set_size(Vector2i(960, 600))
+
+
 func _capture() -> void:
+	_set_capture_window_size()
 	await get_tree().create_timer(0.5).timeout
 	var initial_position := actor.position
 	var click := InputEventMouseButton.new()
@@ -1206,14 +1415,17 @@ func _capture() -> void:
 
 
 func _capture_home() -> void:
+	_set_capture_window_size()
 	await get_tree().create_timer(0.4).timeout
 	if not _prepare_capture_completed_dam():
 		get_tree().quit(1)
 		return
 	home_stage.activate()
+	_update_branch_cues()
 	home_invite.visible = true
 	home_invite.text = "Agora vamos construir a casa!"
 	status.text = "Agora vamos construir a casa! Escolhe uma peça."
+	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var initial_error := get_viewport().get_texture().get_image().save_png("user://home.png")
 	await _capture_build_home()
@@ -1239,15 +1451,19 @@ func _capture_build_home() -> void:
 
 
 func _capture_food() -> void:
+	_set_capture_window_size()
 	await get_tree().create_timer(0.4).timeout
 	if not _prepare_capture_completed_dam():
 		get_tree().quit(1)
 		return
 	home_stage.activate()
+	_update_branch_cues()
 	await _capture_build_home()
+	_update_branch_cues()
 	home_invite.text = "Agora vamos guardar comida para o inverno!"
 	home_invite.visible = true
 	status.text = "Agora vamos guardar comida para o inverno! Escolhe um feixe."
+	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var initial_error := get_viewport().get_texture().get_image().save_png("user://food.png")
 	for _index in range(FoodStage.REQUIRED_COUNT):
@@ -1268,12 +1484,15 @@ func _capture_food() -> void:
 
 
 func _capture_ending() -> void:
+	_set_capture_window_size()
 	await get_tree().create_timer(0.4).timeout
 	if not _prepare_capture_completed_dam():
 		get_tree().quit(1)
 		return
 	home_stage.activate()
+	_update_branch_cues()
 	await _capture_build_home()
+	_update_branch_cues()
 	for _index in range(FoodStage.REQUIRED_COUNT):
 		var bundle := _capture_first_suitable_food_bundle()
 		if bundle == null:
@@ -1337,7 +1556,7 @@ func _prepare_capture_completed_dam() -> bool:
 		branch.place(self, placement_center, placed_count)
 		placed_count += 1
 	finish_choice = "finish_golden"
-	_update_water()
+	_update_water(false)
 	_update_progress_cue()
 	_update_branch_cues()
 	_update_finish_choices(false)

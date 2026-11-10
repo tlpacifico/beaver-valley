@@ -24,6 +24,11 @@ const LODGE_FLOOR_SIZE := Vector3(1.4, 0.12, 0.7)
 const LODGE_BED_SAMPLE_STEP: float = 0.1
 ## The lodge itself stands in the lake; `lodge` remains the dry approach anchor.
 const LODGE_SITE_XZ := Vector2(-5.5, -4.8)
+## Cache offset from the lodge, toward the camera and the dry bank. The cache
+## stays in the maximum lake footprint while the actor approaches from land.
+const FOOD_CACHE_OFFSET := Vector2(1.9, 0.8)
+const FOOD_CACHE_APPROACH_XZ := Vector2(-1.25, -3.65)
+const DAM_CREST_ABOVE_FULL: float = 0.34
 
 var _terrain: ValleyTerrain
 var _anchors: Dictionary = {}
@@ -73,7 +78,37 @@ func lodge_build_center() -> Vector3:
 			var x := site.x - LODGE_FLOOR_SIZE.x * 0.5 + LODGE_FLOOR_SIZE.x * x_ratio
 			var z := site.z - LODGE_FLOOR_SIZE.z * 0.5 + LODGE_FLOOR_SIZE.z * z_ratio
 			highest_bed = maxf(highest_bed, _terrain.height_at(Vector2(x, z)))
-	return Vector3(site.x, highest_bed - 0.10, site.z)
+	# Once the dam is built the lake is at the full level. Keep the lodge floor
+	# safely below that surface, but above the bed so the visible house sits on
+	# its mound instead of sinking into it.
+	var floor_y := maxf(highest_bed - 0.10, _terrain.full_water_level() - 0.24)
+	return Vector3(site.x, floor_y, site.z)
+
+
+## Visible submerged cache beside the lodge, on the camera-facing side.
+func food_cache_xz() -> Vector2:
+	var site := lodge_site()
+	return Vector2(site.x + FOOD_CACHE_OFFSET.x, site.z + FOOD_CACHE_OFFSET.y)
+
+
+## Dry bank point used to approach the cache; the storage itself stays in water.
+func food_cache_approach_xz() -> Vector2:
+	return FOOD_CACHE_APPROACH_XZ
+
+
+## Horizontal crest of the dam, above the full lake surface so the placed
+## branches and the finish remain visible.
+func dam_crest_y() -> float:
+	if _terrain == null:
+		return 0.28
+	return _terrain.full_water_level() + DAM_CREST_ABOVE_FULL
+
+
+func dam_center() -> Vector3:
+	if _terrain == null:
+		return Vector3.ZERO
+	var z := _terrain.dam_z()
+	return Vector3(_terrain.river_center_x(z), dam_crest_y(), z)
 
 
 func route_points() -> PackedVector3Array:

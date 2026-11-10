@@ -12,6 +12,7 @@ var stable_id: String = ""
 var kind: Kind = Kind.NORMAL
 var gnawed: bool = false
 var bent: bool = false
+var placed_slot: int = -1
 var thick_bulge: MeshInstance3D
 var gnaw_scars: Array[MeshInstance3D] = []
 
@@ -142,8 +143,10 @@ func bend() -> void:
 	rotation.z = deg_to_rad(28.0)
 
 
-func place(parent: Node3D, target_position: Vector3, slot_index: int) -> void:
+func place(parent: Node3D, target_position: Vector3, slot_index: int, animate: bool = false) -> void:
 	state = State.PLACED
+	placed_slot = slot_index
+	var start_global := global_transform
 	if get_parent() != parent:
 		var world_transform := global_transform
 		get_parent().remove_child(self)
@@ -152,10 +155,25 @@ func place(parent: Node3D, target_position: Vector3, slot_index: int) -> void:
 	position = target_position + Vector3((slot_index - 1) * 0.48, 0.18, 0.0)
 	rotation = Vector3(0.0, 0.0, deg_to_rad(-15.0))
 	hit_area.collision_layer = 0
+	if animate and is_inside_tree():
+		var end_global := global_transform
+		global_transform = start_global
+		var flight := create_tween()
+		flight.tween_method(_set_flight_transform.bind(start_global, end_global), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		flight.tween_callback(func() -> void: global_transform = end_global)
+
+
+## Interpolate the complete transform, including the placement orientation, so
+## a branch thrown from the bank does not keep the beaver's facing while flying.
+func _set_flight_transform(progress: float, start: Transform3D, end: Transform3D) -> void:
+	var basis := start.basis.slerp(end.basis, progress).orthonormalized()
+	var origin := start.origin.lerp(end.origin, progress)
+	global_transform = Transform3D(basis, origin)
 
 
 func return_to_origin(world: Node3D) -> void:
 	state = State.FREE
+	placed_slot = -1
 	if get_parent() != world:
 		get_parent().remove_child(self)
 		world.add_child(self)

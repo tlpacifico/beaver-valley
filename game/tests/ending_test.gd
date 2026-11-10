@@ -46,6 +46,19 @@ func _run() -> void:
 	_expect(bool(winter.get("is_winter")), "The winter scene is not active.")
 	_expect(int(winter.call("get_snow_count")) >= 40, "The winter scene has no falling snow.")
 	_expect(int(winter.call("get_family_count")) >= 2, "The beaver family is missing from the ending.")
+	_expect(int(winter.call("get_snow_patch_count")) >= 15, "The winter scene has no terrain snow patches.")
+	var home: Node = world.get("home_stage")
+	_expect(home != null and bool(home.call("is_snow_visible")), "The lodge has no snow cap in winter.")
+	var dam_snow: Node = winter.get_node_or_null("DamSnow")
+	_expect(dam_snow != null and dam_snow.visible, "The finished dam has no snow cover in winter.")
+	for position: Vector3 in winter.call("get_family_positions"):
+		var xz: Vector2 = Vector2(position.x, position.z)
+		_expect(not world.terrain.is_water_footprint(xz), "A family member is standing in the lake.")
+		_expect(absf(position.y - (world.terrain.height_at(xz) + 0.05)) <= 0.12, "A family member is not grounded on the relief.")
+	for patch in winter.find_children("SnowPatch*", "MeshInstance3D", true, false):
+		var patch_node := patch as MeshInstance3D
+		var ground_normal: Vector3 = world.terrain.normal_at(Vector2(patch_node.global_position.x, patch_node.global_position.z))
+		_expect(patch_node.global_transform.basis.y.normalized().dot(ground_normal) >= 0.92, "A snow patch is not aligned with the terrain slope.")
 	var overlay: Control = world.get("ending_overlay")
 	_expect(overlay != null and not overlay.visible, "Reloading a completed chapter replayed the ending overlay.")
 	var title: Label = world.get("ending_title")

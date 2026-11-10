@@ -6,7 +6,7 @@
 
 ## Current sequencing
 
-The functional chapter exists, but its presentation is not yet accepted as the intended valley. [Milestone 4b](04b-visual-valley.md) is the next production phase and provides the detailed sequence for unfinished A2/A3 work: composition, playable river/routes, coherent visual assets, chapter integration and validation. The checklist below is a production track, not evidence of completion; reconcile it with observed deliverables during 4b. A4 remains finalization after the composition is accepted.
+The functional chapter exists, but its presentation is not yet accepted as the intended valley. [Milestone 4b](04b-visual-valley.md) is the current production phase; its R1–R5 automated/desktop evidence is recorded in [startup-progress](../startup-progress.md), and author, child and device validation remain. The checklist below is a production track, not evidence of completion; reconcile it with observed deliverables during 4b. A4 remains finalization after the composition is accepted.
 
 ## A1 — Provisional valley, milestones 1–2
 

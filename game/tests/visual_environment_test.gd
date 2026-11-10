@@ -37,13 +37,30 @@ func _run() -> void:
 	environment.set_dam_state(3, "finish_golden")
 	var final_log := environment.get_node("DamProgressLog2") as MeshInstance3D
 	var finish_material := (final_log.mesh as CylinderMesh).material as StandardMaterial3D
-	_expect(finish_material.albedo_color.is_equal_approx(Color("d6a83e")), "Golden finish should color the final structural log.")
+	_expect(finish_material.albedo_color.is_equal_approx(Color("85603a")), "The finish choice should not repaint the full final log.")
+	var first_log := environment.get_node("DamProgressLog0") as MeshInstance3D
+	_expect((first_log.mesh as CylinderMesh).material.albedo_color.is_equal_approx(Color("93663f")), "A structural log lost its timber colour.")
+	for index in range(3):
+		var log := environment.get_node("DamProgressLog%d" % index) as MeshInstance3D
+		_expect(log.position.y > terrain.full_water_level(), "Dam log %d is submerged below the full lake." % index)
+	var brush := environment.get_node_or_null("DamBrush")
+	_expect(brush != null and brush.visible, "The completed dam has no visible brush and stakes.")
+	var mud_bank: MeshInstance3D = null
+	if brush != null:
+		mud_bank = brush.get_node_or_null("DamMudBank") as MeshInstance3D
+	_expect(mud_bank != null, "The completed dam has no mud bank.")
+	var spillway := environment.get_node_or_null("DamSpillway")
+	_expect(spillway != null and not spillway.visible, "The spillway is visible before the lake rises.")
+	environment.set_water_level(terrain.full_water_level())
+	_expect(spillway != null and spillway.visible, "The spillway is not visible at the full lake level.")
+	environment.set_dam_state(0, "")
+	_expect(brush != null and not brush.visible, "The dam brush is visible before the first placement.")
 	environment.set_dam_state(3, "finish_moss")
 	finish_material = (final_log.mesh as CylinderMesh).material as StandardMaterial3D
-	_expect(finish_material.albedo_color.is_equal_approx(Color("668b59")), "Moss finish should color the final structural log.")
+	_expect(finish_material.albedo_color.is_equal_approx(Color("85603a")), "The moss finish should not repaint the full final log.")
 	environment.set_dam_state(3, "unknown")
 	finish_material = (final_log.mesh as CylinderMesh).material as StandardMaterial3D
-	_expect(finish_material.albedo_color.is_equal_approx(Color("93663f")), "Unknown finish should retain natural timber color.")
+	_expect(finish_material.albedo_color.is_equal_approx(Color("85603a")), "Unknown finish should retain the timber colour.")
 	_expect(environment.find_children("*", "CollisionObject3D", true, false).is_empty(), "Visual environment must not introduce collision bodies.")
 	_expect(environment.get_node_or_null("GoldenTree") != null, "Grounded scenery trees are missing.")
 	for child in environment.get_children():

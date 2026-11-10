@@ -12,6 +12,7 @@ At the repository root, in PowerShell:
 
 ```powershell
 ./tools/castor.ps1 run
+./tools/castor.ps1 playtest
 ./tools/castor.ps1 editor
 ./tools/castor.ps1 cube
 ./tools/castor.ps1 relief
@@ -19,6 +20,8 @@ At the repository root, in PowerShell:
 ./tools/castor.ps1 traversal
 ./tools/castor.ps1 traversal-capture
 ```
+
+`run` opens the current chapter and restores the normal progress. `playtest` opens the same chapter from a clean isolated `user://playtest_save/` directory, clearing only that test save, so the normal `user://dam_save.json` is not touched. Use it for a full playtest from the beginning.
 
 Run one action at a time. You can also open `builds/windows/Castor.exe` directly, without the editor. Clicking a free spot on the bank makes the character walk to the yellow circle along the terrain; another valid click changes the destination. Water, the future lake footprint, steep banks and outside the valley are refused without cancelling the current path. Closing the window ends the test. In the `cube` scene, the button pauses and resumes the rotation.
 
@@ -60,9 +63,9 @@ On PC, press Ctrl+R and confirm. On a touchscreen, hold the title for about 1.2 
 ./tools/castor.ps1 export-android
 ```
 
-The `check` command tests the cube, the terrain chapter route (real ray selection, water/steep refusal, gnawing, dam, home, food and winter), isolated save recovery, the home and food stage details, and static and animated asset imports. Success ends with `CASTOR_ASSETS_OK`. It does not validate real touch or understanding by the child.
+The `check` command tests the cube, the terrain chapter route (real ray selection, water/steep refusal, gnawing, dam, home, food and winter), the prepared water reaches and clear cache, isolated schema 1/schema 2 save fixtures for every stage, slope-speed measurements, branch placement orientation and slot order, the home and food stage details, and static and animated asset imports. Success ends with `CASTOR_ASSETS_OK`. It does not validate real touch or understanding by the child.
 
-For automatic graphical verification of the current executable, run `builds/windows/Castor.exe -- --capture-movement`; it sends a mouse event, checks that movement started, saves `movement.png` to Godot's user data folder and exits on its own. Run `builds/windows/Castor.exe -- --capture-initial` to capture the untouched chapter start with an isolated save. Run `builds/windows/Castor.exe -- --capture-home` to make the home stage available immediately, build it, and save `home.png` and `home_complete.png` to the same folder. Run `builds/windows/Castor.exe -- --capture-food` to build the home and the food store and save `food.png` and `food_complete.png`. Run `builds/windows/Castor.exe -- --capture-ending` to build the whole chapter and save `ending.png` and `ending_valley.png`. The capture modes use an isolated `user://capture_save/` and do not touch the normal chapter save. Do not pass those options for normal play. For the old cube test with the engine, use the explicit scene: `Godot_v4.7.2-stable_win64_console.exe --path game res://scenes/bootstrap.tscn -- --smoke-test`.
+For automatic graphical verification of the current executable, run `builds/windows/Castor.exe -- --capture-movement`; it sends a mouse event, checks that movement started, saves `movement.png` to Godot's user data folder and exits on its own. Run `builds/windows/Castor.exe -- --capture-initial` to capture the untouched chapter start with an isolated save. Run `builds/windows/Castor.exe -- --capture-water` to capture the initial marsh, the first and second dam placements and the completed lake from the same play camera; it saves `water_initial.png`, `water_one.png`, `water_two.png` and `water_complete.png`. Run `builds/windows/Castor.exe -- --capture-home` to make the home stage available immediately, build it, and save `home.png` and `home_complete.png` to the same folder. Run `builds/windows/Castor.exe -- --capture-food` to build the home and the food store and save `food.png` and `food_complete.png`. Run `builds/windows/Castor.exe -- --capture-ending` to build the whole chapter and save `ending.png` and `ending_valley.png`. The capture modes set the window back to 960 × 600, use an isolated `user://capture_save/` and do not touch the normal chapter save. Do not pass those options for normal play. For the old cube test with the engine, use the explicit scene: `Godot_v4.7.2-stable_win64_console.exe --path game res://scenes/bootstrap.tscn -- --smoke-test`.
 
 The debug exports generate `builds/windows/Castor.exe` and `builds/android/castor-debug.apk`. `builds/` and caches stay out of Git. The script does not install tools if they are missing.
 

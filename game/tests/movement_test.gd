@@ -60,6 +60,7 @@ func _run() -> void:
 	_expect(world.support_characters._owl.visible and world.help_highlight_active, "No-material help did not show the owl or highlight a suitable branch.")
 	_expect(world.branch_cues.size() == 5 and world.branch_cues.all(func(cue: MeshInstance3D) -> bool: return cue.visible), "Available branches do not have persistent visual selection cues.")
 	_expect(world.placement_cue != null and world.placement_cue.visible, "Dam target does not have a persistent visual cue.")
+	_expect(world.dam_target_cue != null and world.dam_target_cue.visible, "The dam crest has no second placement marker.")
 	_expect(world.get_node("CanvasLayer/DamProgress").text == "Ramos na represa: ○○○", "Initial dam progress is not shown visually.")
 	_expect(world.help_button.visible and world.help_button.text == "?" and world.help_button.tooltip_text == "Ajuda", "Discreet on-request help button is missing.")
 	world.voice.cancel()
@@ -106,6 +107,7 @@ func _run() -> void:
 	_expect(await _wait(func() -> bool: return world.carried_branch == branch, 15.0), "The branch was not carried after the approach.")
 	_expect(world.request_place(), "The carried branch could not be routed to the dam.")
 	_expect(await _wait(func() -> bool: return world.placed_count == 1, 15.0), "The first branch was not placed in the dam.")
+	_expect(is_equal_approx(world.water_level, world.terrain.intermediate_water_level()), "The first dam placement did not raise the lake to the intermediate level.")
 
 	# Thick branch: pick it up, gnaw it and place it.
 	var thick: Node = world.branches[0]
@@ -114,6 +116,7 @@ func _run() -> void:
 	_expect(world.request_gnaw(), "The thick branch could not be gnawed.")
 	_expect(thick.gnawed and world.request_place(), "The gnawed branch could not be placed.")
 	_expect(await _wait(func() -> bool: return world.placed_count == 2, 15.0), "The second branch was not placed.")
+	_expect(is_equal_approx(world.water_level, world.terrain.full_water_level()), "The second dam placement did not fill the lake.")
 
 	var third: Node = world.branches[2]
 	_expect(world.request_collect(third), "The third branch could not be selected.")
@@ -121,7 +124,11 @@ func _run() -> void:
 	_expect(world.request_place(), "The third branch could not be routed to the dam.")
 	_expect(await _wait(func() -> bool: return world.placed_count == 3, 15.0), "The third branch was not placed.")
 	_expect(world.home_stage.is_active, "Completing the dam did not activate the home stage.")
-	_expect(world.water_surface.mesh is ArrayMesh and (world.water_surface.mesh as ArrayMesh).get_surface_count() > 0, "The terrain water mesh is missing after the dam.")
+	_expect(world.water_surface.mesh is ArrayMesh and (world.water_surface.mesh as ArrayMesh).get_surface_count() > 0, "The lake water mesh is missing after the dam.")
+	_expect(world.stream_surface.mesh is ArrayMesh and (world.stream_surface.mesh as ArrayMesh).get_surface_count() > 0, "The downstream stream mesh is missing after the dam.")
+	_expect(world.placement_center.y > world.terrain.full_water_level(), "Placed branches are not above the full lake surface.")
+	_expect(not world.dam_target_cue.visible, "The dam crest marker is still visible after completion.")
+	_expect(world.water_level == world.terrain.full_water_level(), "The complete dam does not keep the full lake level.")
 
 	# Home: two parts on the grounded lodge.
 	var home: Node = world.home_stage
@@ -210,7 +217,11 @@ func _run_dam_regressions() -> void:
 		_expect(await _wait(func() -> bool: return world.placed_count == expected_count), "Normal branch %d was not placed once." % branch_index)
 	_expect(world.placed_count == 3 and world.home_stage.is_active, "Three normal branches alone did not complete the dam and open the home stage.")
 	_expect(world.branches[0].state == CollectibleBranch.State.FREE, "Normal-only dam completion consumed the optional thick branch.")
-	_expect(world.select_finish_choice("finish_golden") and world.select_finish_choice("finish_moss"), "Completed dam did not accept both finishing choices.")
+	_expect(world.select_finish_choice("finish_golden"), "Completed dam did not accept the golden finishing choice.")
+	var trim_material := (world.finish_trim.mesh as BoxMesh).material as StandardMaterial3D
+	_expect(trim_material.albedo_color.is_equal_approx(Color("d6a83e")), "The golden finish was not applied to the short crest accent.")
+	_expect(world.select_finish_choice("finish_moss"), "Completed dam did not accept the moss finishing choice.")
+	_expect(trim_material.albedo_color.is_equal_approx(Color("668b59")), "The moss finish was not applied to the short crest accent.")
 	_expect(world.finish_choice == "finish_moss" and world.finish_trim.visible, "The selected dam finish was not applied.")
 	var completed_save: Dictionary = DamSave.load_state(REGRESSION_SAVE_DIRECTORY)["state"]
 	_expect(completed_save["finish_choice"] == "finish_moss" and completed_save["stage_completed"], "The finishing choice or completed dam was not saved.")

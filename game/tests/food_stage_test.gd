@@ -91,9 +91,21 @@ func _run() -> void:
 	_expect(int(food.call("get_suitable_count")) == 3 and int(food.call("get_thin_count")) == 2, "The food stage does not offer three suitable and two thin bundles.")
 	var viewport := Rect2(Vector2.ZERO, Vector2(960, 600))
 	var target_position: Vector3 = food.call("get_target_position")
-	_expect(target_position.y < world.terrain.initial_water_level(), "The food cache is not underwater.")
+	_expect(target_position.y < world.terrain.full_water_level() - 0.05, "The food cache is not safely underwater at the full lake level.")
+	_expect(target_position.y > world.terrain.height_at(Vector2(target_position.x, target_position.z)), "The food cache is buried in the lake bed.")
 	_expect(world.terrain.is_water_footprint(Vector2(target_position.x, target_position.z)), "The food cache is not in the lake footprint.")
 	_expect(viewport.has_point(world.camera.unproject_position(target_position)), "The food target is outside the fixed camera view.")
+	var cache_marker := food.get_node_or_null("FoodCacheMarker") as Node3D
+	var cache_basket := food.get_node_or_null("FoodCacheBasket") as Node3D
+	_expect(cache_marker != null and cache_marker.visible, "The submerged cache has no visible surface marker.")
+	_expect(cache_basket != null and cache_basket.visible, "The submerged cache has no visible basket.")
+	if cache_marker != null:
+		_expect(absf(cache_marker.global_position.y - world.terrain.full_water_level()) <= 0.08, "The cache surface marker does not sit on the full lake surface.")
+	if cache_basket != null:
+		_expect(cache_basket.global_position.y < world.terrain.full_water_level(), "The cache basket is not underwater.")
+	var dry_cache_approach: Vector2 = world.layout.food_cache_approach_xz()
+	_expect(world.navigation.is_walkable(dry_cache_approach), "The cache approach is not on walkable dry ground.")
+	_expect(not world.terrain.is_water_footprint(dry_cache_approach), "The cache approach is in the lake.")
 	for bundle: Node in bundles:
 		_expect(viewport.has_point(world.camera.unproject_position(bundle.global_position + Vector3.UP * 0.15)), "A food bundle is outside the fixed camera view.")
 
@@ -168,6 +180,8 @@ func _run() -> void:
 			_expect(saved_after_placement["food_placements"].size() == expected_count, "A food placement was not saved.")
 	_expect(bool(food.call("is_complete")), "The food store did not complete with three bundles.")
 	_expect(int(food.get("placed_count")) == 3 and int(food.call("get_visible_pile_count")) == 3, "The food pile does not show all three bundles.")
+	for bundle: Node3D in food.get("placed_bundles"):
+		_expect(bundle.global_position.y < world.terrain.full_water_level() - 0.05, "A placed bundle centre is at or above the full lake surface.")
 	_expect(world.get_node("CanvasLayer/FoodProgress").text == "Comida guardada: ●●●", "The completed food progress is wrong.")
 	_expect(world.food_completion_feedback.visible and world.food_completion_feedback.text == "A comida está guardada!", "The food completion message is missing.")
 	_expect(not world.home_completion_feedback.visible and not world.home_invite.visible, "The old home messages stayed visible after the food store was completed.")

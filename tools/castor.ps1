@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('editor', 'run', 'follow', 'cube', 'assets', 'relief', 'relief-capture', 'traversal', 'traversal-capture', 'check', 'export-windows', 'export-android', 'branch-export')]
+    [ValidateSet('editor', 'run', 'playtest', 'follow', 'cube', 'assets', 'relief', 'relief-capture', 'traversal', 'traversal-capture', 'check', 'export-windows', 'export-android', 'branch-export')]
     [string]$Action = 'run'
 )
 
@@ -18,6 +18,7 @@ switch ($Action) {
         & $godotConsole --path $gamePath --editor
     }
     'run' { & $godotConsole --path $gamePath }
+    'playtest' { & $godotConsole --path $gamePath -- --fresh-save }
     'follow' { & $godotConsole --path $gamePath -- --camera-follow }
     'cube' { & $godotConsole --path $gamePath res://scenes/bootstrap.tscn }
     'assets' { & $godotConsole --path $gamePath res://scenes/asset_import_test.tscn }
@@ -32,8 +33,12 @@ switch ($Action) {
         if ($LASTEXITCODE -ne 0) { throw 'The cube test failed.' }
         & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/movement_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The movement test failed.' }
+        & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/branch_flight_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The branch flight test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/valley_terrain_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The valley terrain test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/valley_water_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The valley water test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/valley_collision_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The valley collision test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/valley_navigation_test.gd
@@ -44,6 +49,8 @@ switch ($Action) {
         if ($LASTEXITCODE -ne 0) { throw 'The valley preview test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/dam_save_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The dam save test failed.' }
+        & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/save_fixture_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The save fixture test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/home_stage_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The home stage test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/food_stage_test.gd

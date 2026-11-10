@@ -36,25 +36,58 @@ var placement_help_active: bool = false
 
 var _actor: CharacterBody3D
 var _navigation: ValleyNavigation
-var _lodge_approach_position: Vector3 = Vector3(-0.7, 0.0, -3.5)
+var _cache_approach_position: Vector3 = Vector3(-1.25, 0.0, -3.65)
+var _cache_bed_y: float = -0.45
 var _bundle_cues: Array[MeshInstance3D] = []
 var _target_ring: MeshInstance3D
 var _target_area: Area3D
+var _cache_marker: Node3D
+var _cache_basket: Node3D
 var _completion_sparkles: Array[MeshInstance3D] = []
 
 
 func configure(terrain: ValleyTerrain, layout: ValleyLayout) -> void:
-	var lodge_site := layout.lodge_site()
-	_lodge_approach_position = layout.anchor(&"lodge")
-	var target := Vector2(lodge_site.x + 0.7, lodge_site.z + 0.6)
-	# Beavers cache branches under water beside the lodge; the actor still
-	# approaches from the dry bank.
-	target_position = Vector3(target.x, terrain.initial_water_level() - 0.08, target.y)
-	water_surface_y = terrain.initial_water_level()
+	_cache_approach_position = Vector3(
+		layout.food_cache_approach_xz().x,
+		terrain.height_at(layout.food_cache_approach_xz()),
+		layout.food_cache_approach_xz().y
+	)
+	var cache_xz := layout.food_cache_xz()
+	_cache_bed_y = terrain.height_at(cache_xz)
+	# The food stage starts after the dam, so the cache belongs to the full lake
+	# surface. Keep every bundle centre below the water and above the lake bed.
+	water_surface_y = terrain.full_water_level()
+	target_position = Vector3(cache_xz.x, _cache_target_y(water_surface_y), cache_xz.y)
 	var spots: Array[Vector2] = [Vector2(1.2, -4.1), Vector2(2.4, -4.7), Vector2(3.6, -4.1), Vector2(4.4, -4.8), Vector2(3.0, -3.5)]
 	bundle_origins.clear()
 	for spot in spots:
 		bundle_origins.append(Vector3(spot.x, terrain.height_at(spot) + 0.05, spot.y))
+
+
+func set_water_level(level: float) -> void:
+	var previous := water_surface_y
+	water_surface_y = level
+	target_position.y = _cache_target_y(level)
+	if _target_ring != null:
+		_target_ring.position.y = level + 0.12
+	if _cache_marker != null:
+		_cache_marker.position.y = level
+	if _cache_basket != null:
+		_cache_basket.position.y = target_position.y
+	if _target_area != null and _target_area.get_child_count() > 0:
+		var shape := _target_area.get_child(0) as CollisionShape3D
+		if shape != null:
+			shape.position = target_position
+	var shift := water_surface_y - previous
+	if not is_zero_approx(shift):
+		for bundle in placed_bundles:
+			bundle.position.y += shift
+
+
+## Centre of the cache: below the surface, above the bed and deep enough that
+## the bundle centres stay submerged.
+func _cache_target_y(level: float) -> float:
+	return minf(maxf(level - 0.24, _cache_bed_y + 0.10), level - 0.06)
 
 
 func _ready() -> void:
@@ -84,6 +117,10 @@ func activate_silent() -> void:
 	for bundle in bundles:
 		bundle.visible = true
 	_target_ring.visible = true
+	if _cache_marker != null:
+		_cache_marker.visible = true
+	if _cache_basket != null:
+		_cache_basket.visible = true
 	_update_cues()
 
 
@@ -326,8 +363,10 @@ func _finish_placement() -> void:
 func _pile_transform(index: int) -> Transform3D:
 	var offsets := [-0.34, 0.0, 0.34]
 	var offset_x: float = offsets[mini(index, offsets.size() - 1)]
-	var basis := Basis(Vector3.UP, float(index) * 0.7).scaled(Vector3.ONE)
-	return Transform3D(basis, target_position + Vector3(offset_x, 0.02, 0.0))
+	var basis := Basis(Vector3.UP, float(index) * 0.7).scaled(Vector3.ONE * 0.95)
+	# Keep every bundle centre below the surface; the clear-water window and the
+	# surface marker keep the submerged reserve readable.
+	return Transform3D(basis, target_position + Vector3(offset_x, 0.02 + float(index) * 0.025, 0.0))
 
 
 func _approach_path(target: Vector3) -> PackedVector3Array:
@@ -339,7 +378,7 @@ func _approach_path(target: Vector3) -> PackedVector3Array:
 func _approach_lodge_path() -> PackedVector3Array:
 	if _navigation == null or _actor == null:
 		return PackedVector3Array()
-	return _navigation.find_approach(_actor.global_position, Vector2(_lodge_approach_position.x, _lodge_approach_position.z), 3)
+	return _navigation.find_approach(_actor.global_position, Vector2(_cache_approach_position.x, _cache_approach_position.z), 3)
 
 
 func _update_cues() -> void:
@@ -389,6 +428,62 @@ func _build_target() -> void:
 	collision.position = target_position
 	_target_area.add_child(collision)
 	add_child(_target_area)
+	_build_cache_structures()
+
+
+## A ring of sticks at the surface and a shallow woven basket below make the
+## submerged reserve readable without depending on the progress counter.
+func _build_cache_structures() -> void:
+	_cache_marker = Node3D.new()
+	_cache_marker.name = "FoodCacheMarker"
+	_cache_marker.position = Vector3(target_position.x, water_surface_y, target_position.z)
+	_cache_marker.visible = false
+	add_child(_cache_marker)
+	for index in range(7):
+		var angle := TAU * float(index) / 7.0
+		var stick := MeshInstance3D.new()
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 0.018
+		mesh.bottom_radius = 0.032
+		mesh.height = 0.42
+		mesh.radial_segments = 5
+		mesh.material = Shapes.material(Color("9a6a3f") if index % 2 == 0 else Color("7f8f52"))
+		stick.mesh = mesh
+		stick.position = Vector3(cos(angle) * 0.82, 0.16, sin(angle) * 0.62)
+		stick.rotation = Vector3(0.14 * sin(angle), -angle, 0.10 * cos(angle))
+		stick.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_cache_marker.add_child(stick)
+	var leaf := MeshInstance3D.new()
+	var leaf_mesh := SphereMesh.new()
+	leaf_mesh.radius = 0.16
+	leaf_mesh.height = 0.10
+	leaf_mesh.radial_segments = 7
+	leaf_mesh.rings = 3
+	leaf_mesh.material = Shapes.material(Color("7fae63"))
+	leaf.mesh = leaf_mesh
+	leaf.position = Vector3(0.0, 0.05, 0.0)
+	leaf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_cache_marker.add_child(leaf)
+
+	_cache_basket = Node3D.new()
+	_cache_basket.name = "FoodCacheBasket"
+	_cache_basket.position = target_position
+	_cache_basket.visible = false
+	add_child(_cache_basket)
+	for index in range(5):
+		var angle := TAU * float(index) / 5.0
+		var basket_stick := MeshInstance3D.new()
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 0.025
+		mesh.bottom_radius = 0.04
+		mesh.height = 0.46
+		mesh.radial_segments = 5
+		mesh.material = Shapes.material(Color("8a5a35"))
+		basket_stick.mesh = mesh
+		basket_stick.position = Vector3(cos(angle) * 0.52, 0.0, sin(angle) * 0.4)
+		basket_stick.rotation = Vector3(0.62, -angle, 0.0)
+		basket_stick.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_cache_basket.add_child(basket_stick)
 
 
 func _build_bundles() -> void:
