@@ -8,6 +8,8 @@
 
 The functional chapter exists, but its presentation is not yet accepted as the intended valley. [Milestone 4b](04b-visual-valley.md) is the current production phase; its R1–R5 automated/desktop evidence is recorded in [startup-progress](../startup-progress.md), and author, child and device validation remain. The checklist below is a production track, not evidence of completion; reconcile it with observed deliverables during 4b. A4 remains finalization after the composition is accepted.
 
+The author's 11 November request for more rocks, mud and movement space is scoped in [nature/exploration stages N1–N3](seasonal-gameplay-expansion.md): compose a natural bank and clearing, open a connected land loop, then extend the playable valley with one new clearing and an appropriate camera. Reuse this production track for assets and evidence. Scenery rocks/mud do not automatically become collectible resources; new physical obstacles must also be represented in navigation. These stages are planned work and do not close earlier acceptance gates.
+
 ## A1 — Provisional valley, milestones 1–2
 
 - [ ] Represent terrain, banks, river and dam area with simple volumes.

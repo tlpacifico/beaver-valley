@@ -34,6 +34,10 @@ switch ($Action) {
         if ($LASTEXITCODE -ne 0) { throw 'The cube test failed.' }
         & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/movement_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The movement test failed.' }
+        & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/chapter_feedback_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The chapter feedback test failed.' }
+        & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/construction_feedback_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The construction feedback test failed.' }
         & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/branch_flight_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The branch flight test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/valley_terrain_test.gd

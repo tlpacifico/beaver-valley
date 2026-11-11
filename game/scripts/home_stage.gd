@@ -373,6 +373,8 @@ func _update_cues() -> void:
 	if not is_active:
 		return
 	var complete := is_complete()
+	# Quiet closed pickup rings; the free build positions are translucent
+	# silhouettes that grow stronger while a part is carried.
 	for index in range(parts.size()):
 		var part := parts[index]
 		var selectable := not complete and (part.state == HomePart.State.FREE or part.state == HomePart.State.RESERVED)
@@ -382,19 +384,26 @@ func _update_cues() -> void:
 		var cue := _part_cues[index]
 		cue.visible = selectable and part != carried_part
 		if part == pending_part:
-			cue.scale = Vector3.ONE * 1.2
+			cue.scale = Vector3.ONE * 1.18
 			(cue.mesh as TorusMesh).material.albedo_color = Color("ffca45")
 		else:
 			cue.scale = Vector3.ONE
-			(cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1") if help_highlight_active else Color("fff0a3")
+			if help_highlight_active:
+				(cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1")
+			elif carried_part != null:
+				(cue.mesh as TorusMesh).material.albedo_color = Color("b8b18a")
+			else:
+				(cue.mesh as TorusMesh).material.albedo_color = Color("e4d9a0")
+	var destination_emphasis := carried_part != null or placement_help_active
 	for index in range(slot_count):
 		var occupied: bool = slot_parts[index] != null
 		if _slot_areas[index] != null:
 			_slot_areas[index].collision_layer = SLOT_LAYER if not occupied and not complete else 0
 		var ghost := _slot_ghosts[index]
 		ghost.visible = not occupied and not complete
-		var ghost_color := Color("70e6a1") if carried_part != null or placement_help_active else Color("ffe17d")
-		ghost_color.a = 0.34
+		ghost.scale = Vector3.ONE * (1.06 if destination_emphasis else 1.0)
+		var ghost_color := Color("70e6a1") if destination_emphasis else Color("ffe17d")
+		ghost_color.a = 0.48 if destination_emphasis else 0.30
 		(ghost.material_override as StandardMaterial3D).albedo_color = ghost_color
 
 
@@ -627,7 +636,7 @@ func _build_parts() -> void:
 func _ground_ring(at: Vector3, radius: float, color: Color) -> MeshInstance3D:
 	var cue := MeshInstance3D.new()
 	var ring := TorusMesh.new()
-	ring.inner_radius = radius * 0.72
+	ring.inner_radius = radius * 0.82
 	ring.outer_radius = radius
 	ring.material = Shapes.material(color)
 	cue.mesh = ring

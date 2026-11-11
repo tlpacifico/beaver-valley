@@ -74,18 +74,17 @@ func _run() -> void:
 		quit(1)
 		return
 	_expect(not bool(food.get("is_active")), "The food stage started before the home was finished.")
-	_expect(world.get_node("CanvasLayer/DamProgress").visible and not world.get_node("CanvasLayer/FoodProgress").visible, "The food progress replaced the dam progress before the food stage.")
+	_expect(world.progress_label.text == "Peças na casa: ○○", "The home stage did not show its current progress before the food stage.")
 
 	# Completing the home must hand the chapter over to the food store.
 	_expect(await _place_home_part(home, 0, 0), "The first home part could not be placed.")
 	_expect(await _place_home_part(home, 1, 1), "The second home part could not be placed.")
 	_expect(bool(home.call("is_complete")), "The home did not complete before the food stage.")
 	_expect(bool(food.get("is_active")), "The food stage did not start after the home was completed.")
-	_expect(world.home_invite.visible and world.home_invite.text == "Agora vamos guardar comida para o inverno!", "The food invitation did not replace the home invitation.")
-	_expect(world.home_completion_feedback.visible, "The home completion message disappeared when the food stage started.")
+	_expect(world.status.text == "Escolhe um feixe de comida.", "The food objective did not replace the home objective.")
+	_expect(world.stage_completion.visible and world.stage_completion.text == "A casa está pronta!", "The home completion message disappeared when the food stage started.")
 	_expect(world.voice.active_event == "food_invite", "The food invitation voice line did not play.")
-	_expect(not world.get_node("CanvasLayer/DamProgress").visible and world.get_node("CanvasLayer/FoodProgress").visible, "The food progress did not replace the dam progress.")
-	_expect(world.get_node("CanvasLayer/FoodProgress").text == "Comida guardada: ○○○", "The initial food progress is wrong.")
+	_expect(world.progress_label.text == "Comida guardada: ○○○", "The food progress did not replace the home progress.")
 	var bundles: Array = food.get("bundles")
 	_expect(bundles.size() == 5, "The food stage does not expose five bundles.")
 	_expect(int(food.call("get_suitable_count")) == 3 and int(food.call("get_thin_count")) == 2, "The food stage does not offer three suitable and two thin bundles.")
@@ -117,7 +116,7 @@ func _run() -> void:
 		_expect(world._move_from_screen(thin_screen), "Tapping a food bundle did not start its collection.")
 		_expect(await _wait_for(func() -> bool: return food.get("carried_bundle") == thin_bundle), "The thin bundle was not carried after arrival.")
 		_expect(not food.call("request_place"), "The water accepted a thin bundle.")
-		_expect(world.status.text == "Este feixe é pequeno. Escolhe outro.", "The thin bundle refusal is not in Portuguese.")
+		_expect(world.stage_completion.visible and world.stage_completion.text == "Este feixe é pequeno. Escolhe outro.", "The thin bundle refusal is not in Portuguese.")
 		_expect(world.voice.active_event == "food_unsuitable", "The thin bundle refusal has no voice cue.")
 		_expect(bool(food.get("help_highlight_active")), "The thin bundle refusal did not highlight suitable bundles.")
 
@@ -138,7 +137,7 @@ func _run() -> void:
 	var target_screen: Vector2 = world.camera.unproject_position(target_position)
 	_expect(world._move_from_screen(target_screen), "Tapping the food target did not start placement.")
 	_expect(await _wait_for(func() -> bool: return int(food.get("placed_count")) >= 1), "The first food bundle was not placed on arrival.")
-	_expect(world.get_node("CanvasLayer/FoodProgress").text == "Comida guardada: ●○○", "The food progress did not advance after the first bundle.")
+	_expect(world.progress_label.text == "Comida guardada: ●○○", "The food progress did not advance after the first bundle.")
 	_expect(int(food.call("get_visible_pile_count")) == 1, "The first placed bundle is not visible in the water.")
 
 	# The first placement is durable; an interrupted session must restore it.
@@ -155,9 +154,9 @@ func _run() -> void:
 	food = world.get("food_stage")
 	_expect(bool(home.call("is_complete")) and bool(food.get("is_active")), "The interrupted session did not restore the home and food stage.")
 	_expect(int(food.get("placed_count")) == 1 and int(food.call("get_visible_pile_count")) == 1, "The interrupted session did not restore the first food bundle.")
-	_expect(world.get_node("CanvasLayer/FoodProgress").text == "Comida guardada: ●○○", "The interrupted session did not restore the food progress.")
+	_expect(world.progress_label.text == "Comida guardada: ●○○", "The interrupted session did not restore the food progress.")
 	_expect(food.get("carried_bundle") == null and food.get("pending_bundle") == null, "The interrupted session restored a carried or pending bundle.")
-	_expect(world.home_invite.visible and world.home_invite.text == "Agora vamos guardar comida para o inverno!", "The interrupted session did not show the food invitation.")
+	_expect(world.status.text == "Escolhe um feixe de comida.", "The interrupted session did not show the food objective.")
 	_expect(food.call("get_placed_bundle_ids").size() == 1, "The interrupted session did not restore exactly one placed bundle.")
 
 	# Two more suitable bundles complete the store.
@@ -182,11 +181,11 @@ func _run() -> void:
 	_expect(int(food.get("placed_count")) == 3 and int(food.call("get_visible_pile_count")) == 3, "The food pile does not show all three bundles.")
 	for bundle: Node3D in food.get("placed_bundles"):
 		_expect(bundle.global_position.y < world.terrain.full_water_level() - 0.05, "A placed bundle centre is at or above the full lake surface.")
-	_expect(world.get_node("CanvasLayer/FoodProgress").text == "Comida guardada: ●●●", "The completed food progress is wrong.")
-	_expect(world.food_completion_feedback.visible and world.food_completion_feedback.text == "A comida está guardada!", "The food completion message is missing.")
-	_expect(not world.home_completion_feedback.visible and not world.home_invite.visible, "The old home messages stayed visible after the food store was completed.")
+	_expect(world.progress_label.text == "Comida guardada: ●●●", "The completed food progress is wrong.")
+	_expect(world.stage_completion.visible and world.stage_completion.text == "A comida está guardada!", "The food completion message is missing.")
+	_expect(world.stage_completion.text != "A casa está pronta!", "The old home completion message stayed visible after the food store was completed.")
 	_expect(world.voice.active_event == "food_complete", "The food completion voice line did not play.")
-	_expect(not world.get_node("CanvasLayer/FoodProgress").visible or world.get_node("CanvasLayer/FoodProgress").text == "Comida guardada: ●●●", "The completed food progress is not readable.")
+	_expect(world.progress_label.visible and world.progress_label.text == "Comida guardada: ●●●", "The completed food progress is not readable.")
 	bundles = food.get("bundles")
 	for bundle: Node in bundles:
 		_expect(bundle.get("hit_area").collision_layer == 0, "A food bundle is still selectable after completion.")
@@ -195,6 +194,8 @@ func _run() -> void:
 	# The third bundle hands over to the winter ending after a short pause.
 	_expect(await _wait_for(func() -> bool: return world.ending_overlay.visible, 300), "The ending overlay did not appear after the food store.")
 	_expect(world.status.text == "Não foi possível guardar o progresso. Pede ajuda a um adulto.", "The winter transition hid the final food save warning.")
+	_expect(world.ending_save_warning != null and world.ending_save_warning.visible and world.ending_save_warning.text == "Não foi possível guardar o progresso. Pede ajuda a um adulto.", "The failed final food save is not readable above the ending overlay.")
+	_expect(world.ending_overlay.is_ancestor_of(world.ending_save_warning), "The ending save warning is not drawn inside the ending overlay.")
 	_expect(world.ending_title.text == "O inverno chegou!", "The ending title is missing.")
 	_expect("família" in world.ending_message.text and "comida" in world.ending_message.text, "The ending message is incomplete.")
 	_expect(not ("hibernar" in world.ending_message.text.to_lower()) and not ("dormir" in world.ending_message.text.to_lower()), "The ending suggests hibernation.")
@@ -229,8 +230,8 @@ func _run() -> void:
 	_expect(not reload_world.ending_overlay.visible, "Reload replayed the ending overlay.")
 	_expect(reload_world.winter_new_adventure_button.visible, "Reload did not restore the new-adventure action.")
 	_expect(reload_world.status.text.begins_with("O inverno chegou!"), "Reload did not restore the winter status.")
-	_expect(reload_world.get_node("CanvasLayer/FoodProgress").visible and reload_world.get_node("CanvasLayer/FoodProgress").text == "Comida guardada: ●●●", "Reload did not restore the food progress.")
-	_expect(not reload_world.food_completion_feedback.visible and not reload_world.home_invite.visible and not reload_world.home_completion_feedback.visible, "Reload restored the old completion messages.")
+	_expect(reload_world.progress_label.visible and reload_world.progress_label.text == "Comida guardada: ●●●", "Reload did not restore the food progress.")
+	_expect(not reload_world.stage_completion.visible, "Reload restored an old completion message.")
 	reload_world.queue_free()
 	await process_frame
 	_expect(DamSave.clear_save(SAVE_TEST_DIRECTORY), "Could not clean up the isolated food-stage save files.")

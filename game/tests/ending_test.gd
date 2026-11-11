@@ -69,8 +69,8 @@ func _run() -> void:
 	var new_adventure: Button = world.get("winter_new_adventure_button")
 	_expect(new_adventure != null and new_adventure.visible and new_adventure.text == "Nova aventura", "The protected new-adventure action is missing.")
 	_expect(world.status.text.begins_with("O inverno chegou!"), "The restored winter status is wrong.")
-	_expect(world.get_node("CanvasLayer/FoodProgress").visible and world.get_node("CanvasLayer/FoodProgress").text == "Comida guardada: ●●●", "The restored winter progress is wrong.")
-	_expect(not world.food_completion_feedback.visible and not world.home_invite.visible, "Old completion messages are still visible in winter.")
+	_expect(world.progress_label.visible and world.progress_label.text == "Comida guardada: ●●●", "The restored winter progress is wrong.")
+	_expect(not world.stage_completion.visible, "An old completion message is still visible in winter.")
 	_expect(world.food_stage.is_complete() and world.food_stage.is_active, "The restored chapter is not food-complete.")
 	_expect(world.home_stage.is_complete() and world.placed_count == 3, "The restored home or dam is incomplete.")
 

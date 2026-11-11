@@ -39,7 +39,7 @@ var _navigation: ValleyNavigation
 var _cache_approach_position: Vector3 = Vector3(-1.25, 0.0, -3.65)
 var _cache_bed_y: float = -0.45
 var _bundle_cues: Array[MeshInstance3D] = []
-var _target_ring: MeshInstance3D
+var _target_ring: Node3D
 var _target_area: Area3D
 var _cache_marker: Node3D
 var _cache_basket: Node3D
@@ -385,6 +385,8 @@ func _update_cues() -> void:
 	if not is_active:
 		return
 	var complete := is_complete()
+	var carrying_suitable := carried_bundle != null and is_bundle_suitable(carried_bundle)
+	# Quiet closed pickup rings; the storage position is a broken outline.
 	for index in range(bundles.size()):
 		var bundle := bundles[index]
 		var selectable := not complete and (bundle.state == FoodBundle.State.FREE or bundle.state == FoodBundle.State.RESERVED)
@@ -392,31 +394,30 @@ func _update_cues() -> void:
 		var cue := _bundle_cues[index]
 		cue.visible = selectable
 		if bundle == pending_bundle:
-			cue.scale = Vector3.ONE * 1.2
+			cue.scale = Vector3.ONE * 1.18
 			(cue.mesh as TorusMesh).material.albedo_color = Color("ffca45")
 		else:
 			cue.scale = Vector3.ONE
 			var highlight := help_highlight_active and is_bundle_suitable(bundle)
-			(cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1") if highlight else Color("fff0a3")
+			if highlight:
+				(cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1")
+			elif carrying_suitable:
+				(cue.mesh as TorusMesh).material.albedo_color = Color("b8b18a")
+			else:
+				(cue.mesh as TorusMesh).material.albedo_color = Color("e4d9a0")
 	if _target_ring != null:
 		_target_ring.visible = not complete
-		(_target_ring.mesh as TorusMesh).material.albedo_color = Color("70e6a1") if placement_help_active or (carried_bundle != null and is_bundle_suitable(carried_bundle)) else Color("ffe17d")
+		var destination_emphasis := placement_help_active or carrying_suitable
+		_target_ring.scale = Vector3.ONE * (1.08 if destination_emphasis else 1.0)
+		_set_destination_cue_color(_target_ring, Color("70e6a1") if destination_emphasis else Color("ffe17d"))
 	if _target_area != null:
 		_target_area.collision_layer = TARGET_LAYER if not complete else 0
 
 
 func _build_target() -> void:
-	_target_ring = MeshInstance3D.new()
+	_target_ring = _add_destination_outline(Vector3(target_position.x, water_surface_y + 0.12, target_position.z), 1.0, Color("ffe17d"))
 	_target_ring.name = "FoodTargetCue"
-	var ring := TorusMesh.new()
-	ring.inner_radius = 0.82
-	ring.outer_radius = 1.1
-	ring.material = Shapes.material(Color("ffe17d"))
-	_target_ring.mesh = ring
-	_target_ring.position = Vector3(target_position.x, water_surface_y + 0.12, target_position.z)
 	_target_ring.visible = false
-	_target_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_target_ring)
 	_target_area = Area3D.new()
 	_target_area.name = "FoodTargetArea"
 	_target_area.collision_layer = 0
@@ -506,7 +507,7 @@ func _build_bundles() -> void:
 func _ground_ring(at: Vector3, radius: float, color: Color) -> MeshInstance3D:
 	var cue := MeshInstance3D.new()
 	var ring := TorusMesh.new()
-	ring.inner_radius = radius * 0.72
+	ring.inner_radius = radius * 0.82
 	ring.outer_radius = radius
 	ring.material = Shapes.material(color)
 	cue.mesh = ring
@@ -514,6 +515,36 @@ func _ground_ring(at: Vector3, radius: float, color: Color) -> MeshInstance3D:
 	cue.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(cue)
 	return cue
+
+
+## Destination cue: a broken outline instead of a closed ring, so the pickup
+## and placement verbs are distinguishable by shape as well as colour.
+func _add_destination_outline(at: Vector3, radius: float, color: Color) -> Node3D:
+	var cue := Node3D.new()
+	cue.position = at
+	for index in range(8):
+		var angle := TAU * float(index) / 8.0
+		var segment := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(radius * 0.48, 0.035, maxf(radius * 0.10, 0.04))
+		mesh.material = Shapes.material(color)
+		segment.mesh = mesh
+		segment.position = Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+		segment.rotation.y = -angle - PI * 0.5
+		segment.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		cue.add_child(segment)
+	add_child(cue)
+	return cue
+
+
+func _set_destination_cue_color(cue: Node3D, color: Color) -> void:
+	for child in cue.get_children():
+		var segment := child as MeshInstance3D
+		if segment == null:
+			continue
+		var mesh := segment.mesh as BoxMesh
+		if mesh != null and mesh.material is StandardMaterial3D:
+			(mesh.material as StandardMaterial3D).albedo_color = color
 
 
 func _build_completion_sparkles() -> void:

@@ -26,7 +26,10 @@ func _run() -> void:
 	_expect(preview.actor.floor_snap_length >= 0.3, "Actor floor snap is too short for descents.")
 	_expect(is_equal_approx(preview.actor.floor_max_angle, deg_to_rad(40.0)), "Actor floor angle is not the R2 value.")
 	_expect(preview.actor.floor_constant_speed, "Actor does not keep constant slope speed.")
-	await _expect_arrived(preview, preview.layout.anchor(&"dam_approach"), "dam")
+	var dam_target: Vector3 = preview.layout.anchor(&"dam_approach")
+	_expect(preview.navigation.is_walkable(Vector2(dam_target.x, dam_target.z)), "The dam approach is not walkable.")
+	_expect(not preview.terrain.is_water_footprint(Vector2(dam_target.x, dam_target.z)), "The dam approach is in the maximum lake footprint.")
+	await _expect_arrived(preview, dam_target, "dam")
 	var dam_y: float = preview.actor.global_position.y
 	var uphill_start := Engine.get_physics_frames()
 	await _expect_arrived(preview, preview.layout.anchor(&"lodge"), "lodge")

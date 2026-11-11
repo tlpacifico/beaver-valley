@@ -51,7 +51,7 @@ func _run() -> void:
 	_expect(world.navigation.get_cell_count() == 572, "The shared navigation grid is not 26 × 22 cells.")
 	_expect(world.branches.size() == 5 and world.branch_cues.size() == 5, "The chapter does not expose five branches.")
 	_expect(world.branches.all(func(branch: Node3D) -> bool: return branch.global_position.y > world.terrain.full_water_level()), "A branch is not grounded on dry land.")
-	_expect(world.status.text == "Clica no chão para andar.", "The initial instruction still mentions the removed rock.")
+	_expect(world.status.text == "Escolhe um ramo para a represa.", "The initial instruction is not the current dam objective.")
 	_expect(world.home_stage._lodge_nodes.size() > 0 and world.home_stage._lodge_nodes.all(func(node: Node3D) -> bool: return not node.visible), "The lodge is visible before the dam is built.")
 	_expect(world.camera.projection == Camera3D.PROJECTION_PERSPECTIVE and is_equal_approx(world.camera.fov, 36.0), "The chapter is not using the accepted perspective camera.")
 	_expect(world.voice.active_event == "dam_start", "Entering the scene did not start the introduction voice cue.")
@@ -70,7 +70,7 @@ func _run() -> void:
 	_expect(world.branch_cues.size() == 5 and world.branch_cues.all(func(cue: MeshInstance3D) -> bool: return cue.visible), "Available branches do not have persistent visual selection cues.")
 	_expect(world.placement_cue != null and world.placement_cue.visible, "Dam target does not have a persistent visual cue.")
 	_expect(world.dam_target_cue != null and world.dam_target_cue.visible, "The dam crest has no second placement marker.")
-	_expect(world.get_node("CanvasLayer/DamProgress").text == "Ramos na represa: ○○○", "Initial dam progress is not shown visually.")
+	_expect(world.progress_label.text == "Ramos na represa: ○○○", "Initial dam progress is not shown visually.")
 	_expect(world.help_button.visible and world.help_button.text == "?" and world.help_button.tooltip_text == "Ajuda", "Discreet on-request help button is missing.")
 	world.voice.cancel()
 	world.help_highlight_active = false
@@ -118,6 +118,7 @@ func _run() -> void:
 	_expect(branch.get_parent() == world.actor and branch.position.is_equal_approx(Vector3(-0.11, 0.44, -0.48)) and is_zero_approx(branch.rotation.z), "The collected branch did not attach at the new beaver's paws.")
 	_expect(world.request_place(), "The carried branch could not be routed to the dam.")
 	_expect(await _wait(func() -> bool: return world.placed_count == 1, 15.0), "The first branch was not placed in the dam.")
+	_expect(await _wait_dam_presentation(world, 1, world.terrain.intermediate_water_level()), "The first dam placement did not present one log and the intermediate lake.")
 	_expect(is_equal_approx(world.water_level, world.terrain.intermediate_water_level()), "The first dam placement did not raise the lake to the intermediate level.")
 
 	# Thick branch: pick it up, gnaw it and place it.
@@ -127,6 +128,7 @@ func _run() -> void:
 	_expect(world.request_gnaw(), "The thick branch could not be gnawed.")
 	_expect(thick.gnawed and world.request_place(), "The gnawed branch could not be placed.")
 	_expect(await _wait(func() -> bool: return world.placed_count == 2, 15.0), "The second branch was not placed.")
+	_expect(await _wait_dam_presentation(world, 2, world.terrain.full_water_level()), "The second dam placement did not present two logs and the full lake.")
 	_expect(is_equal_approx(world.water_level, world.terrain.full_water_level()), "The second dam placement did not fill the lake.")
 
 	var third: Node = world.branches[2]
@@ -134,6 +136,7 @@ func _run() -> void:
 	_expect(await _wait(func() -> bool: return world.carried_branch == third, 15.0), "The third branch was not carried.")
 	_expect(world.request_place(), "The third branch could not be routed to the dam.")
 	_expect(await _wait(func() -> bool: return world.placed_count == 3, 15.0), "The third branch was not placed.")
+	_expect(await _wait_dam_presentation(world, 3, world.terrain.full_water_level()), "The third dam placement did not present the completed structure without another rise.")
 	_expect(world.home_stage.is_active, "Completing the dam did not activate the home stage.")
 	_expect(world.water_surface.mesh is ArrayMesh and (world.water_surface.mesh as ArrayMesh).get_surface_count() > 0, "The lake water mesh is missing after the dam.")
 	_expect(world.stream_surface.mesh is ArrayMesh and (world.stream_surface.mesh as ArrayMesh).get_surface_count() > 0, "The downstream stream mesh is missing after the dam.")
@@ -170,6 +173,10 @@ func _run() -> void:
 	if failures == 0:
 		print("CASTOR_MOVEMENT_OK terrain_click water_refusal branch_ray gnaw dam home food winter")
 	quit(0 if failures == 0 else 1)
+
+
+func _wait_dam_presentation(world: Node, count: int, level: float) -> bool:
+	return await _wait(func() -> bool: return world.visual_environment.get_visible_dam_log_count() == count and is_equal_approx(world.water_level, level), 8.0)
 
 
 func _place_home_part(home: Node, part: Node, slot_index: int) -> bool:
@@ -228,6 +235,8 @@ func _run_dam_regressions() -> void:
 		_expect(world.request_place(), "Could not place normal branch %d." % branch_index)
 		var expected_count: int = branch_index - 1
 		_expect(await _wait(func() -> bool: return world.placed_count == expected_count), "Normal branch %d was not placed once." % branch_index)
+	_expect(await _wait(func() -> bool: return world.placed_count == 3), "The normal-only dam did not reach three placements.")
+	_expect(await _wait_dam_presentation(world, 3, world.terrain.full_water_level()), "The normal-only dam did not present its completed structure.")
 	_expect(world.placed_count == 3 and world.home_stage.is_active, "Three normal branches alone did not complete the dam and open the home stage.")
 	_expect(world.branches[0].state == CollectibleBranch.State.FREE, "Normal-only dam completion consumed the optional thick branch.")
 	_expect(world.select_finish_choice("finish_golden"), "Completed dam did not accept the golden finishing choice.")

@@ -69,7 +69,8 @@ func _run() -> void:
 		quit(1)
 		return
 	_expect(world.placed_count == 3, "Activating the home stage changed the completed dam.")
-	_expect(world.home_invite.visible and world.home_invite.text == "Agora vamos construir a casa!", "The home stage did not keep the Portuguese invitation visible.")
+	_expect(world.status.text == "Escolhe uma peça para a casa.", "The home stage did not show its current objective.")
+	_expect(world.progress_label.text == "Peças na casa: ○○", "The home stage did not show its current progress.")
 	_expect(not world.branch_cues.any(func(cue: MeshInstance3D) -> bool: return cue.visible), "Leftover branch cues still compete with the home stage.")
 	for branch: CollectibleBranch in world.branches:
 		if branch.state == CollectibleBranch.State.FREE:
@@ -145,9 +146,9 @@ func _run() -> void:
 	_expect(world._move_from_screen(first_part_screen), "Tapping a loose home part did not start its collection.")
 	_expect(home.get("pending_part") == first_part, "The selected home part was not reserved while approaching.")
 	_expect(world.request_help() and world.voice.active_event == "help_home_collect", "Help during a pending home pickup did not use the home-specific line.")
-	_expect(world.status.text == "O castor vai buscar a peça.", "Help during a pending home pickup did not explain the approach.")
+	_expect(world.stage_completion.visible and world.stage_completion.text == "O castor vai buscar a peça.", "Help during a pending home pickup did not explain the approach.")
 	_expect(not home.call("request_place", 0), "A home position accepted placement before the part arrived.")
-	_expect(world.status.text == "O castor vai buscar a peça.", "An early home placement did not explain that the part is still being fetched.")
+	_expect(world.stage_completion.visible and world.stage_completion.text == "O castor vai buscar a peça.", "An early home placement did not explain that the part is still being fetched.")
 	_expect(await _wait_for(func() -> bool: return home.get("carried_part") == first_part), "The home part was not carried after arrival.")
 	_expect(first_part.get_parent() == world.actor, "The carried home part did not attach to the beaver.")
 	_expect(world.request_help() and world.voice.active_event == "help_home_place", "Help with a carried home part did not use the home-specific placement line.")
@@ -159,7 +160,7 @@ func _run() -> void:
 	_expect(int(home.get("pending_slot")) == 0, "The wall position was not reserved while approaching.")
 	_expect(await _wait_for(func() -> bool: return int(home.get("placed_slot_count")) == 1), "The first home part was not placed on arrival.")
 	_expect(bool(home.call("is_slot_occupied", 0)) and home.call("part_at_slot", 0) == first_part, "The wall position did not receive the placed part.")
-	_expect(world.status.text == "A peça ficou na casa!", "Placing the first home part did not show a Portuguese confirmation.")
+	_expect(world.stage_completion.visible and world.stage_completion.text == "A peça ficou na casa!", "Placing the first home part did not show a Portuguese confirmation.")
 	_expect(not bool(home.call("is_complete")), "The home was completed after only one of two positions.")
 
 	# Any part fits, but an occupied position is refused with a clear message.
@@ -167,7 +168,7 @@ func _run() -> void:
 	_expect(home.call("request_collect", second_part), "A second home part could not be selected.")
 	_expect(await _wait_for(func() -> bool: return home.get("carried_part") == second_part), "The second home part was not carried after arrival.")
 	_expect(not home.call("request_place", 0), "An occupied home position accepted another part.")
-	_expect(world.status.text == "Esta parte da casa já está cheia.", "An occupied position did not explain the refusal in Portuguese.")
+	_expect(world.stage_completion.visible and world.stage_completion.text == "Esta parte da casa já está cheia.", "An occupied position did not explain the refusal in Portuguese.")
 
 	# Swapping before placement returns the previous part to its origin.
 	var third_part: Node = parts[2]
@@ -186,9 +187,9 @@ func _run() -> void:
 	_expect(world.status.text == "Não foi possível guardar o progresso. Pede ajuda a um adulto.", "The home completion or food-stage transition hid a failed-save warning.")
 	_expect(home.call("part_at_slot", 1) == third_part, "The roof position did not receive the placed part.")
 	_expect(home.get_node("LodgeWindow").visible, "Completing the home did not show a visible warm window.")
-	_expect(world.home_completion_feedback.visible and world.home_completion_feedback.text == "A casa está pronta!", "Completing the home did not show the Portuguese completion message.")
-	_expect(world.home_invite.visible and world.home_invite.text == "Agora vamos guardar comida para o inverno!", "Completing the home did not hand over to the food invitation.")
-	_expect(not world.completion_feedback.visible, "Completing the home left the older dam message visible.")
+	_expect(world.stage_completion.visible and world.stage_completion.text == "A casa está pronta!", "Completing the home did not show the Portuguese completion message.")
+	_expect(world.food_stage.is_active and world.progress_label.text == "Comida guardada: ○○○", "Completing the home did not hand over to the food objective and progress.")
+	_expect(world.stage_completion.text != "A represa está pronta!", "Completing the home left the older dam message visible.")
 	_expect(world.status.text == "Não foi possível guardar o progresso. Pede ajuda a um adulto.", "The food-stage invitation hid the home save warning.")
 	_expect(second_part.get("hit_area").collision_layer == 0, "The unused home part remained selectable after completion.")
 	_expect(world.placed_count == 3, "Building the home changed the completed dam.")
@@ -214,8 +215,8 @@ func _run() -> void:
 	_expect(reload_home.get_node("LodgeWindow").visible, "Reload did not restore the lodge window.")
 	var reload_food: Node = reload_world.get("food_stage")
 	_expect(reload_food != null and bool(reload_food.get("is_active")), "Reload of a completed home did not start the food stage.")
-	_expect(reload_world.home_invite.visible and reload_world.home_invite.text == "Agora vamos guardar comida para o inverno!", "Reload of a completed home did not show the food invitation.")
-	_expect(reload_world.get_node("CanvasLayer/FoodProgress").visible and reload_world.get_node("CanvasLayer/FoodProgress").text == "Comida guardada: ○○○", "Reload of a completed home did not show the food progress.")
+	_expect(reload_world.status.text == "Escolhe um feixe de comida.", "Reload of a completed home did not show the food objective.")
+	_expect(reload_world.progress_label.text == "Comida guardada: ○○○", "Reload of a completed home did not show the food progress.")
 	_expect(DamSave.load_state(SAVE_TEST_DIRECTORY)["state"]["placed_materials"].size() == 3, "Rebuilding the home changed the dam save.")
 	reload_world.queue_free()
 	await process_frame

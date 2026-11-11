@@ -6,6 +6,8 @@
 
 **Goal:** make the playable valley recognizable as the world proposed by [valley-map-v3.svg](../mockups/valley-map-v3.svg), while preserving the complete chapter and existing progress.
 
+**Priority refinement (10 November 2026):** the author agreed to improve current-task guidance and construction feedback before producing more content or tree models. See the [experience design](../construction-polish-design.md) and [implementation plan](../construction-polish-plan.md). Start with P1–P2 and a child observation checkpoint; the later lodge, river and vegetation work refines this phase's visual contract. The documents are planned work, not implementation or acceptance evidence. Existing R5/human/device gates remain open.
+
 **Architecture:** reshape the existing single valley around a coherent river, banks, dam and upstream lake. Keep the current tap, carry and place interactions and stable save IDs; update scenery, approach points, navigation and framing together. Use prepared water states rather than water simulation.
 
 **Technology:** Godot 4.7.2, typed GDScript, Compatibility renderer; existing Blender/glTF pipeline for external models.

@@ -126,6 +126,14 @@ func _check_fixture(
 	_expect(absf(world.actor.global_position.y - world.terrain.height_at(xz)) <= 0.15, "Fixture %s spawned above or below the terrain." % fixture_name)
 	_expect(not world.terrain.is_water_footprint(xz), "Fixture %s spawned in the lake footprint." % fixture_name)
 	_expect(world.placed_count == expected_placed, "Fixture %s restored %d placed branches instead of %d." % [fixture_name, world.placed_count, expected_placed])
+	var expected_level: float = world.terrain.initial_water_level()
+	if expected_placed == 1:
+		expected_level = world.terrain.intermediate_water_level()
+	elif expected_placed >= 2:
+		expected_level = world.terrain.full_water_level()
+	_expect(world.visual_environment.get_visible_dam_log_count() == expected_placed, "Fixture %s restored %d visible dam logs instead of %d." % [fixture_name, world.visual_environment.get_visible_dam_log_count(), expected_placed])
+	_expect(is_equal_approx(world.water_level, expected_level), "Fixture %s restored the wrong immediate water level." % fixture_name)
+	_expect(not world.stage_completion.visible, "Fixture %s replayed a transient completion message." % fixture_name)
 	_expect(world.home_stage.is_active == expected_home_active, "Fixture %s home-stage activation is wrong." % fixture_name)
 	_expect(world.home_stage.placed_slot_count == expected_home_slots, "Fixture %s restored %d home slots instead of %d." % [fixture_name, world.home_stage.placed_slot_count, expected_home_slots])
 	_expect(world.food_stage.is_active == expected_food_active, "Fixture %s food-stage activation is wrong." % fixture_name)

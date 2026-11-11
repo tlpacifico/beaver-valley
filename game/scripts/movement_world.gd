@@ -24,7 +24,15 @@ const CAMERA_FOV := 36.0
 const CAMERA_FOLLOW_OFFSET := Vector3(9.5, 14.5, 13.0)
 const CAMERA_FOLLOW_SPEED: float = 4.0
 const DAM_BRANCH_COUNT: int = 3
+const DAM_CREST_LAYER: int = 256
+const PICKUP_CUE_COLOR := Color("e4d9a0")
+const PICKUP_MUTED_CUE_COLOR := Color("b8b18a")
+const PICKUP_ACTIVE_CUE_COLOR := Color("ffca45")
+const HELP_CUE_COLOR := Color("70e6a1")
+const DESTINATION_CUE_COLOR := Color("ffe17d")
+const DESTINATION_CARRY_CUE_COLOR := Color("b7f2c2")
 const BRANCH_IDS: Array[String] = ["branch_thick_01", "branch_rotten_01", "branch_normal_01", "branch_normal_02", "branch_normal_03"]
+const SAVE_FAILURE_TEXT: String = "Não foi possível guardar o progresso. Pede ajuda a um adulto."
 var actor: CharacterBody3D
 var camera: Camera3D
 var camera_follow_enabled: bool = false
@@ -54,27 +62,29 @@ var sky_material: ProceduralSkyMaterial
 var visual_environment: VisualEnvironment
 var support_characters: Node3D
 var placement_area: Area3D
+var dam_placement_area: Area3D
 var branch_cues: Array[MeshInstance3D] = []
-var placement_cue: MeshInstance3D
-var dam_target_cue: MeshInstance3D
+var placement_cue: Node3D
+var dam_target_cue: Node3D
+var dam_crest_area: Area3D
 var finish_trim: MeshInstance3D
-var completion_feedback: Label
+var stage_completion: Label
 var message_band: ColorRect
-var home_completion_feedback: Label
-var home_invite: Label
+var progress_label: Label
 var home_stage: HomeStage
 var food_stage: FoodStage
 var winter_scene: WinterScene
 var winter_active: bool = false
-var food_progress: Label
-var food_completion_feedback: Label
 var ending_overlay: ColorRect
 var ending_title: Label
 var ending_message: Label
+var ending_save_warning: Label
 var continue_button: Button
 var ending_new_adventure_button: Button
 var winter_new_adventure_button: Button
+var finish_panel: PanelContainer
 var finish_prompt: Label
+var finish_close_button: Button
 var celebration_sparkles: Array[MeshInstance3D] = []
 var adult_restart_button: Button
 var title_control: Label
@@ -92,6 +102,17 @@ var help_highlight_active: bool = false
 var placement_help_active: bool = false
 var save_directory: String = DamSave.DEFAULT_DIRECTORY
 var _save_failure_visible: bool = false
+var _last_chapter_signature: String = ""
+var _transient_generation: int = 0
+var _transient_tween: Tween
+var _transient_kind: String = ""
+var _completion_active: bool = false
+var _completion_callback: Callable = Callable()
+## Scene-local presentation state. The durable placement count commits at the
+## beaver's arrival; logs, water and the finish control advance only when the
+## material's animated flight reports that it reached the dam.
+var _presented_dam_count: int = 0
+var _presentation_generation: int = 0
 
 
 func _ready() -> void:
@@ -227,7 +248,8 @@ func _ready() -> void:
 	food_stage.placed.connect(_on_food_placed)
 	food_stage.completed.connect(_on_food_completed)
 	food_stage.activated.connect(_on_food_activated)
-	var capture_mode := "--capture-initial" in OS.get_cmdline_user_args() or "--capture-home" in OS.get_cmdline_user_args() or "--capture-food" in OS.get_cmdline_user_args() or "--capture-ending" in OS.get_cmdline_user_args() or "--capture-water" in OS.get_cmdline_user_args()
+	voice.event_finished.connect(_on_voice_event_finished)
+	var capture_mode := "--capture-initial" in OS.get_cmdline_user_args() or "--capture-home" in OS.get_cmdline_user_args() or "--capture-food" in OS.get_cmdline_user_args() or "--capture-ending" in OS.get_cmdline_user_args() or "--capture-water" in OS.get_cmdline_user_args() or "--capture-finish" in OS.get_cmdline_user_args() or "--capture-placement" in OS.get_cmdline_user_args()
 	if "--fresh-save" in OS.get_cmdline_user_args():
 		# Interactive playtest from the beginning, isolated from the normal save.
 		save_directory = "user://painted_beaver_playtest_save/" if "--beaver-playtest" in OS.get_cmdline_user_args() else "user://playtest_save/"
@@ -236,9 +258,10 @@ func _ready() -> void:
 		# Debug captures must never alter the player's chapter save.
 		save_directory = "user://capture_save/"
 		DamSave.clear_save(save_directory)
-	voice.play_event("dam_start")
 	_restore_dam_save()
 	_update_branch_cues()
+	if _current_stage() == "dam" and placed_count == 0:
+		voice.play_event("dam_start")
 	if "--capture-ending" in OS.get_cmdline_user_args():
 		_capture_ending()
 	elif "--capture-food" in OS.get_cmdline_user_args():
@@ -247,6 +270,10 @@ func _ready() -> void:
 		_capture_home()
 	elif "--capture-water" in OS.get_cmdline_user_args():
 		_capture_water()
+	elif "--capture-finish" in OS.get_cmdline_user_args():
+		_capture_finish()
+	elif "--capture-placement" in OS.get_cmdline_user_args():
+		_capture_placement()
 	elif "--capture-initial" in OS.get_cmdline_user_args():
 		_capture_initial()
 	elif "--capture-movement" in OS.get_cmdline_user_args():
@@ -264,24 +291,18 @@ func _build_interface() -> void:
 	title_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(title_control)
 	status = Label.new()
-	status.text = "Clica no chão para andar."
+	status.name = "ObjectiveLine"
+	status.text = "Escolhe um ramo para a represa."
 	status.position = Vector2(24, 54)
-	status.add_theme_font_size_override("font_size", 17)
+	status.add_theme_font_size_override("font_size", 20)
 	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(status)
-	var progress := Label.new()
-	progress.name = "DamProgress"
-	progress.position = Vector2(24, 88)
-	progress.add_theme_font_size_override("font_size", 28)
-	progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(progress)
-	food_progress = Label.new()
-	food_progress.name = "FoodProgress"
-	food_progress.position = Vector2(24, 88)
-	food_progress.add_theme_font_size_override("font_size", 28)
-	food_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	food_progress.visible = false
-	layer.add_child(food_progress)
+	progress_label = Label.new()
+	progress_label.name = "ChapterProgress"
+	progress_label.position = Vector2(24, 88)
+	progress_label.add_theme_font_size_override("font_size", 28)
+	progress_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(progress_label)
 	message_band = ColorRect.new()
 	message_band.name = "MessageBand"
 	message_band.position = Vector2(0, 460)
@@ -290,57 +311,22 @@ func _build_interface() -> void:
 	message_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	message_band.visible = false
 	layer.add_child(message_band)
-	completion_feedback = Label.new()
-	completion_feedback.name = "CompletionFeedback"
-	completion_feedback.text = "Fizeste uma represa!"
-	completion_feedback.position = Vector2(0, 515)
-	completion_feedback.size = Vector2(960, 80)
-	completion_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	completion_feedback.add_theme_font_size_override("font_size", 42)
-	completion_feedback.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.05, 0.9))
-	completion_feedback.add_theme_constant_override("outline_size", 6)
-	completion_feedback.add_theme_color_override("font_color", Color("fff0a3"))
-	completion_feedback.visible = false
-	completion_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(completion_feedback)
-	home_invite = Label.new()
-	home_invite.name = "HomeInvite"
-	home_invite.text = "Agora vamos construir a casa!"
-	home_invite.position = Vector2(0, 420)
-	home_invite.size = Vector2(960, 40)
-	home_invite.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	home_invite.add_theme_font_size_override("font_size", 24)
-	home_invite.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.05, 0.9))
-	home_invite.add_theme_constant_override("outline_size", 4)
-	home_invite.visible = false
-	home_invite.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(home_invite)
-	home_completion_feedback = Label.new()
-	home_completion_feedback.name = "HomeCompletionFeedback"
-	home_completion_feedback.text = "A casa está pronta!"
-	home_completion_feedback.position = Vector2(0, 515)
-	home_completion_feedback.size = Vector2(960, 70)
-	home_completion_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	home_completion_feedback.add_theme_font_size_override("font_size", 38)
-	home_completion_feedback.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.05, 0.9))
-	home_completion_feedback.add_theme_constant_override("outline_size", 6)
-	home_completion_feedback.add_theme_color_override("font_color", Color("fff0a3"))
-	home_completion_feedback.visible = false
-	home_completion_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(home_completion_feedback)
-	food_completion_feedback = Label.new()
-	food_completion_feedback.name = "FoodCompletionFeedback"
-	food_completion_feedback.text = "A comida está guardada!"
-	food_completion_feedback.position = Vector2(0, 515)
-	food_completion_feedback.size = Vector2(960, 70)
-	food_completion_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	food_completion_feedback.add_theme_font_size_override("font_size", 38)
-	food_completion_feedback.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.05, 0.9))
-	food_completion_feedback.add_theme_constant_override("outline_size", 6)
-	food_completion_feedback.add_theme_color_override("font_color", Color("fff0a3"))
-	food_completion_feedback.visible = false
-	food_completion_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(food_completion_feedback)
+	stage_completion = Label.new()
+	stage_completion.name = "StageCompletion"
+	# The transient region stays inside the 960 x 600 reference view: long
+	# movement and winter help lines wrap instead of running off the screen.
+	stage_completion.position = Vector2(40, 468)
+	stage_completion.size = Vector2(880, 120)
+	stage_completion.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stage_completion.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	stage_completion.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stage_completion.add_theme_font_size_override("font_size", 38)
+	stage_completion.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.05, 0.9))
+	stage_completion.add_theme_constant_override("outline_size", 6)
+	stage_completion.add_theme_color_override("font_color", Color("fff0a3"))
+	stage_completion.visible = false
+	stage_completion.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(stage_completion)
 	_build_celebration_sparkles()
 	adult_restart_button = Button.new()
 	adult_restart_button.text = "Recomeçar (adulto)"
@@ -351,6 +337,7 @@ func _build_interface() -> void:
 	gnaw_button = Button.new()
 	gnaw_button.text = "Roer o ramo"
 	gnaw_button.position = Vector2(24, 132)
+	gnaw_button.custom_minimum_size = Vector2(140, 48)
 	gnaw_button.visible = false
 	gnaw_button.pressed.connect(request_gnaw)
 	layer.add_child(gnaw_button)
@@ -363,28 +350,12 @@ func _build_interface() -> void:
 	help_button.add_theme_font_size_override("font_size", 26)
 	help_button.pressed.connect(request_help)
 	layer.add_child(help_button)
-	finish_prompt = Label.new()
-	finish_prompt.name = "FinishPrompt"
-	finish_prompt.text = "Escolhe o acabamento da represa:"
-	finish_prompt.position = Vector2(24, 270)
-	finish_prompt.visible = false
-	layer.add_child(finish_prompt)
-	for option in [["finish_golden", "Dourado", Color("d6a83e")], ["finish_moss", "Verde", Color("668b59")]]:
-		var finish_button := Button.new()
-		finish_button.text = option[1]
-		finish_button.toggle_mode = true
-		finish_button.position = Vector2(24 + finish_choice_buttons.size() * 126, 298)
-		finish_button.custom_minimum_size = Vector2(116, 44)
-		finish_button.visible = false
-		var choice_id: String = option[0]
-		finish_button.pressed.connect(func() -> void: select_finish_choice(choice_id))
-		layer.add_child(finish_button)
-		finish_choice_buttons[choice_id] = finish_button
+	_build_finish_panel(layer)
 	winter_new_adventure_button = Button.new()
 	winter_new_adventure_button.name = "WinterNewAdventure"
 	winter_new_adventure_button.text = "Nova aventura"
 	winter_new_adventure_button.position = Vector2(700, 72)
-	winter_new_adventure_button.custom_minimum_size = Vector2(220, 36)
+	winter_new_adventure_button.custom_minimum_size = Vector2(220, 48)
 	winter_new_adventure_button.add_theme_font_size_override("font_size", 16)
 	winter_new_adventure_button.visible = false
 	winter_new_adventure_button.pressed.connect(_confirm_restart)
@@ -398,7 +369,232 @@ func _build_interface() -> void:
 	restart_dialog.confirmed.connect(_restart_experiment)
 	layer.add_child(restart_dialog)
 	_build_ending_overlay(layer)
-	_update_progress_cue()
+	_refresh_chapter_interface()
+
+
+## Compact optional dam-finish panel. It only appears after the celebration (or
+## when the child taps the completed dam) and owns its own click/touch input.
+func _build_finish_panel(layer: CanvasLayer) -> void:
+	finish_panel = PanelContainer.new()
+	finish_panel.name = "FinishPanel"
+	finish_panel.position = Vector2(24, 224)
+	finish_panel.custom_minimum_size = Vector2(360, 0)
+	finish_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	finish_panel.visible = false
+	layer.add_child(finish_panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	finish_panel.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	margin.add_child(box)
+	finish_prompt = Label.new()
+	finish_prompt.name = "FinishPrompt"
+	finish_prompt.text = "Escolhe o acabamento da represa:"
+	finish_prompt.add_theme_font_size_override("font_size", 18)
+	box.add_child(finish_prompt)
+	var choices := HBoxContainer.new()
+	choices.add_theme_constant_override("separation", 10)
+	box.add_child(choices)
+	for option in [["finish_golden", "Dourado"], ["finish_moss", "Verde"]]:
+		var finish_button := Button.new()
+		finish_button.text = option[1]
+		finish_button.toggle_mode = true
+		finish_button.custom_minimum_size = Vector2(140, 48)
+		var choice_id: String = option[0]
+		finish_button.pressed.connect(func() -> void: select_finish_choice(choice_id))
+		choices.add_child(finish_button)
+		finish_choice_buttons[choice_id] = finish_button
+	finish_close_button = Button.new()
+	finish_close_button.name = "FinishClose"
+	finish_close_button.text = "Fechar"
+	finish_close_button.custom_minimum_size = Vector2(140, 48)
+	finish_close_button.pressed.connect(_close_finish_panel)
+	box.add_child(finish_close_button)
+
+
+## Stage by progression order: winter, food, home, dam. Earlier stages can stay
+## active internally; only the furthest stage drives the interface.
+func _current_stage() -> String:
+	if winter_active:
+		return "winter"
+	if food_stage != null and food_stage.is_active:
+		return "food"
+	if home_stage != null and home_stage.is_active:
+		return "home"
+	return "dam"
+
+
+func _objective_text() -> String:
+	match _current_stage():
+		"winter":
+			return "O inverno chegou! A família do castor está reunida."
+		"food":
+			if food_stage != null and food_stage.carried_bundle != null and food_stage.is_bundle_suitable(food_stage.carried_bundle):
+				return "Guarda o feixe junto à casa."
+			return "Escolhe um feixe de comida."
+		"home":
+			if home_stage != null and home_stage.carried_part != null:
+				return "Leva a peça até à casa."
+			return "Escolhe uma peça para a casa."
+		_:
+			if _carried_branch_is_suitable():
+				return "Leva o ramo até à represa."
+			return "Escolhe um ramo para a represa."
+
+
+func _progress_text(stage: String) -> String:
+	match stage:
+		"winter", "food":
+			var food_symbols := "●".repeat(food_stage.placed_count) + "○".repeat(FoodStage.REQUIRED_COUNT - food_stage.placed_count)
+			return "Comida guardada: " + food_symbols
+		"home":
+			var home_symbols := "●".repeat(home_stage.placed_slot_count) + "○".repeat(home_stage.slot_count - home_stage.placed_slot_count)
+			return "Peças na casa: " + home_symbols
+		_:
+			var dam_symbols := "●".repeat(placed_count) + "○".repeat(DAM_BRANCH_COUNT - placed_count)
+			return "Ramos na represa: " + dam_symbols
+
+
+func _chapter_signature() -> String:
+	var branch_state := ""
+	if carried_branch != null:
+		branch_state = "%s:%s" % [carried_branch.stable_id, str(carried_branch.gnawed)]
+	var part_id := home_stage.carried_part.stable_id if home_stage != null and home_stage.carried_part != null else ""
+	var bundle_id := food_stage.carried_bundle.stable_id if food_stage != null and food_stage.carried_bundle != null else ""
+	var home_slots := home_stage.placed_slot_count if home_stage != null else 0
+	var food_count := food_stage.placed_count if food_stage != null else 0
+	return "%s|%s|%s|%s|%d|%d|%d" % [_current_stage(), branch_state, part_id, bundle_id, placed_count, home_slots, food_count]
+
+
+## Derives the permanent objective, the current-stage progress and the
+## contextual controls from committed stage/carry state. Never advances a stage
+## and never saves.
+func _refresh_chapter_interface() -> void:
+	if status == null or progress_label == null:
+		return
+	var stage := _current_stage()
+	_last_chapter_signature = _chapter_signature()
+	status.text = SAVE_FAILURE_TEXT if _save_failure_visible else _objective_text()
+	progress_label.text = _progress_text(stage)
+	progress_label.visible = true
+	_update_obstacle_controls()
+	_update_finish_choices(_presented_dam_count >= DAM_BRANCH_COUNT)
+	_update_branch_cues()
+
+
+func _show_stage_completion(text: String, duration: float = 2.0) -> void:
+	_show_transient(text, duration, true)
+
+
+## Contextual messages share the transient region but never replace a
+## celebration or become a second permanent instruction.
+func _show_feedback(text: String, duration: float = 2.5) -> void:
+	if _completion_active:
+		return
+	_show_transient(text, duration, false)
+
+
+func _show_transient(text: String, duration: float, is_completion: bool) -> void:
+	if stage_completion == null:
+		return
+	_transient_generation += 1
+	var generation := _transient_generation
+	_transient_kind = "completion" if is_completion else "feedback"
+	_completion_active = is_completion
+	_completion_callback = Callable()
+	stage_completion.text = text
+	stage_completion.visible = true
+	if is_completion:
+		var pulse := create_tween()
+		pulse.tween_property(stage_completion, "scale", Vector2(1.08, 1.08), 0.22).from(Vector2.ONE)
+		pulse.tween_property(stage_completion, "scale", Vector2.ONE, 0.22)
+	if _transient_tween != null and _transient_tween.is_valid():
+		_transient_tween.kill()
+	_transient_tween = create_tween()
+	_transient_tween.tween_interval(duration)
+	_transient_tween.tween_callback(func() -> void: _expire_transient(generation))
+
+
+func _expire_transient(generation: int) -> void:
+	if generation != _transient_generation:
+		return
+	var was_completion := _transient_kind == "completion"
+	var callback := _completion_callback
+	_transient_kind = ""
+	_completion_active = false
+	_completion_callback = Callable()
+	stage_completion.visible = false
+	if was_completion and callback.is_valid():
+		callback.call()
+
+
+## Invalidates any pending celebration, so an older expiry or the delayed
+## finish-panel opening can never act after a newer action.
+func _clear_stage_completion() -> void:
+	_transient_generation += 1
+	if _transient_tween != null and _transient_tween.is_valid():
+		_transient_tween.kill()
+	_transient_tween = null
+	_transient_kind = ""
+	_completion_active = false
+	_completion_callback = Callable()
+	if stage_completion != null:
+		stage_completion.visible = false
+
+
+## Changes only the optional panel visibility: never a carried item, never a
+## walking command. The ending and restart modals take precedence.
+func _set_finish_panel_open(is_open: bool) -> void:
+	if finish_panel == null:
+		return
+	var modal_visible := (ending_overlay != null and ending_overlay.visible) or (restart_dialog != null and restart_dialog.visible)
+	var allowed := _presented_dam_count >= DAM_BRANCH_COUNT and not modal_visible
+	finish_panel.visible = is_open and allowed
+
+
+func _open_finish_panel_after_celebration() -> void:
+	_set_finish_panel_open(true)
+
+
+## Closing the panel is a child action: it also cancels the pending automatic
+## opening, so "Fechar" or a choice cannot be undone by the celebration timer.
+func _close_finish_panel() -> void:
+	_set_finish_panel_open(false)
+	if _completion_callback.is_valid() and _completion_callback.get_method() == &"_open_finish_panel_after_celebration":
+		_completion_callback = Callable()
+
+
+func _update_dam_crest_hit_target() -> void:
+	if dam_crest_area != null:
+		dam_crest_area.collision_layer = DAM_CREST_LAYER if _presented_dam_count >= DAM_BRANCH_COUNT else 0
+
+
+func _is_new_action_in_progress() -> bool:
+	if pending_branch != null or placement_pending:
+		return true
+	if home_stage != null and (home_stage.pending_part != null or home_stage.pending_slot >= 0):
+		return true
+	if food_stage != null and (food_stage.pending_bundle != null or food_stage.target_pending):
+		return true
+	return false
+
+
+## Audio completion only reports an event. The world decides whether a home
+## invitation is still valid for the current stage.
+func _on_voice_event_finished(event_id: String) -> void:
+	if event_id != "dam_completed":
+		return
+	if winter_active:
+		return
+	if food_stage != null and food_stage.is_active:
+		return
+	if home_stage == null or not home_stage.is_active or home_stage.is_complete():
+		return
+	voice.play_event("home_invite")
 
 
 func _build_ending_overlay(layer: CanvasLayer) -> void:
@@ -434,6 +630,18 @@ func _build_ending_overlay(layer: CanvasLayer) -> void:
 	ending_message.custom_minimum_size = Vector2(700, 0)
 	ending_message.add_theme_font_size_override("font_size", 24)
 	box.add_child(ending_message)
+	# A failed final save must stay readable above this overlay: the child's
+	# progress is the one thing the ending screen must not hide.
+	ending_save_warning = Label.new()
+	ending_save_warning.name = "EndingSaveWarning"
+	ending_save_warning.text = SAVE_FAILURE_TEXT
+	ending_save_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ending_save_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ending_save_warning.custom_minimum_size = Vector2(700, 0)
+	ending_save_warning.add_theme_font_size_override("font_size", 22)
+	ending_save_warning.add_theme_color_override("font_color", Color("ffb4a8"))
+	ending_save_warning.visible = false
+	box.add_child(ending_save_warning)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 24)
@@ -473,10 +681,22 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(_delta: float) -> void:
 	_update_adult_restart_hold(Time.get_ticks_msec() / 1000.0)
+	# Any meaningful new action invalidates the previous celebration and its
+	# pending finish-panel opening, even when a stage request is called directly.
+	if _completion_active and _is_new_action_in_progress():
+		_clear_stage_completion()
+	if _chapter_signature() != _last_chapter_signature:
+		_refresh_chapter_interface()
 	if click_pending:
 		click_pending = false
 		_move_from_screen(click_position)
 	if pending_branch != null and actor.is_arrived():
+		# A pickup reserved before the final commit must not finish in the home
+		# stage: release it and keep the current stage objective.
+		if placed_count >= DAM_BRANCH_COUNT:
+			_cancel_pending_collection()
+			_show_feedback("A represa está pronta. Vamos construir a casa!")
+			return
 		if carried_branch != null and carried_branch != pending_branch:
 			carried_branch.return_to_origin(self)
 			carried_branch = null
@@ -492,7 +712,7 @@ func _physics_process(_delta: float) -> void:
 		sfx.play_event("collect")
 		incompatible_place_attempts = 0
 		help_highlight_active = false
-		status.text = _collection_comment(carried_branch)
+		_show_feedback(_collection_comment(carried_branch))
 		if not carry_save_ok:
 			_show_save_failure()
 		_update_obstacle_controls()
@@ -509,43 +729,101 @@ func _physics_process(_delta: float) -> void:
 			if not _carried_branch_is_suitable():
 				_update_branch_cues()
 				return
+			var placed_branch := carried_branch
+			var slot_index := placed_count
+			# Scene-local presentation generation: an older response cannot act
+			# after a newer commit, a reload or scene disposal.
+			_presentation_generation += 1
+			var sequence_id := _presentation_generation
 			actor.play_place_action()
-			carried_branch.place(self, placement_center, placed_count, true)
+			placed_branch.placement_visual_finished.connect(_on_dam_placement_visual_finished.bind(sequence_id), CONNECT_ONE_SHOT)
+			placed_branch.place(self, placement_center, slot_index, true)
 			carried_branch = null
 			_update_obstacle_controls()
 			placed_count += 1
-			sfx.play_event("complete" if placed_count == DAM_BRANCH_COUNT else "place")
-			var placement_save_ok := _save_dam_state()
 			incompatible_place_attempts = 0
 			help_highlight_active = false
-			_update_water()
-			if placed_count == 1:
-				voice.play_event("first_placement")
-			status.text = "Boa! A água está a mudar. Escolhe mais um ramo."
-			_update_branch_cues()
-			_update_progress_cue()
-			if placed_count == DAM_BRANCH_COUNT:
-				voice.play_event("dam_completed")
-				status.text = "A represa está completa!"
-				completion_feedback.visible = true
-				home_invite.visible = true
-				_update_finish_choices(true)
-				_cancel_pending_collection()
-				var pulse := create_tween()
-				pulse.tween_property(completion_feedback, "scale", Vector2(1.08, 1.08), 0.22).from(Vector2.ONE)
-				pulse.tween_property(completion_feedback, "scale", Vector2.ONE, 0.22)
-				_play_celebration()
-				home_stage.activate()
-				_update_branch_cues()
+			# Persist exactly once, at the beaver's arrival. Sound, structure,
+			# water and the stage celebration wait for the material to arrive.
+			var placement_save_ok := _save_dam_state()
 			if not placement_save_ok:
 				_show_save_failure()
+			_refresh_chapter_interface()
+			if placed_count == DAM_BRANCH_COUNT:
+				_cancel_pending_collection()
+
+
+## Consumes the branch's material-arrival signal for the current presentation
+## generation. A callback from an older commit is ignored, so a new placement,
+## reload or freed scene never replays an older response or invitation.
+func _on_dam_placement_visual_finished(slot_index: int, sequence_id: int) -> void:
+	if sequence_id != _presentation_generation:
+		return
+	if not is_inside_tree():
+		return
+	if slot_index < 0 or slot_index >= placed_count:
+		return
+	if placed_count <= _presented_dam_count:
+		return
+	_present_dam_arrival()
+
+
+## Presentation only: reveal the committed structure one step, play the impact,
+## animate the prepared upstream rise and show the matching acknowledgement.
+## It never changes durable state and never saves.
+func _present_dam_arrival() -> void:
+	var committed := placed_count
+	var previous_level := water_level
+	var target_level := _water_level_for(committed)
+	# Reconciliation after overlapping commits must never lower visible water.
+	if target_level < previous_level - 0.001:
+		target_level = previous_level
+	_presented_dam_count = committed
+	water_level = target_level
+	if water_surface != null:
+		water_surface.mesh = terrain.water_mesh_reach(target_level, true, layout.food_cache_xz(), 1.15)
+	if stream_surface != null:
+		stream_surface.mesh = terrain.water_mesh_reach(terrain.initial_water_level(), false)
+	if target_level > previous_level + 0.001 and is_inside_tree():
+		_animate_water_rise(previous_level, target_level)
+	else:
+		if water_rise_tween != null:
+			water_rise_tween.kill()
+			water_rise_tween = null
+		if water_surface != null:
+			water_surface.position.y = 0.0
+		# The final placement has no further rise, so a brief ripple still
+		# confirms that the structure reached the water.
+		_spawn_water_ripples(target_level)
+	if visual_environment != null:
+		visual_environment.set_dam_state(_presented_dam_count, finish_choice)
+		visual_environment.set_water_level(target_level)
+	if food_stage != null:
+		food_stage.set_water_level(target_level)
+	sfx.play_event("complete" if committed >= DAM_BRANCH_COUNT else "place")
+	if committed >= DAM_BRANCH_COUNT:
+		_clear_stage_completion()
+		_show_stage_completion("A represa está pronta!")
+		# The optional panel waits for the celebration; an early action clears
+		# this callback, so it cannot open later.
+		_completion_callback = _open_finish_panel_after_celebration
+		home_stage.activate()
+		_cancel_pending_collection()
+		_refresh_chapter_interface()
+		voice.play_event("dam_completed")
+		_play_celebration()
+		return
+	if committed == 1:
+		voice.play_event("first_placement")
+	_show_feedback("Boa! A água está a mudar. Escolhe mais um ramo.")
+	_refresh_chapter_interface()
 
 
 func _process(delta: float) -> void:
 	if camera_follow_enabled and actor != null and camera != null:
 		_update_follow_camera(delta)
-	if message_band != null and completion_feedback != null:
-		message_band.visible = completion_feedback.visible or home_completion_feedback.visible or food_completion_feedback.visible
+	if message_band != null and stage_completion != null:
+		message_band.visible = stage_completion.visible
 
 
 func _update_follow_camera(delta: float) -> void:
@@ -563,6 +841,14 @@ func _update_adult_restart_hold(now_seconds: float) -> void:
 func _move_from_screen(screen_position: Vector2) -> bool:
 	var origin := camera.project_ray_origin(screen_position)
 	var end := origin + camera.project_ray_normal(screen_position) * 100.0
+	# The completed dam is its own optional control. Handle it before the
+	# placement target and before any path that cancels a pending collection or
+	# returns a carried item: opening the panel must not disturb the paws.
+	var crest_query := PhysicsRayQueryParameters3D.create(origin, end, DAM_CREST_LAYER)
+	crest_query.collide_with_areas = true
+	if _presented_dam_count >= DAM_BRANCH_COUNT and not get_world_3d().direct_space_state.intersect_ray(crest_query).is_empty():
+		_set_finish_panel_open(true)
+		return finish_panel != null and finish_panel.visible
 	var query := PhysicsRayQueryParameters3D.create(origin, end, 1)
 	var branch_query := PhysicsRayQueryParameters3D.create(origin, end, 4)
 	branch_query.collide_with_areas = true
@@ -582,6 +868,7 @@ func _move_from_screen(screen_position: Vector2) -> bool:
 	if not home_part_hit.is_empty():
 		var home_part := home_part_hit.collider.get_parent() as HomePart
 		if home_part != null:
+			_begin_world_action()
 			_cancel_pending_collection()
 			placement_pending = false
 			if food_stage != null:
@@ -597,6 +884,7 @@ func _move_from_screen(screen_position: Vector2) -> bool:
 	if not food_bundle_hit.is_empty():
 		var food_bundle := food_bundle_hit.collider.get_parent() as FoodBundle
 		if food_bundle != null:
+			_begin_world_action()
 			_cancel_pending_collection()
 			placement_pending = false
 			if home_stage != null:
@@ -622,6 +910,7 @@ func _move_from_screen(screen_position: Vector2) -> bool:
 		if slot_index < 0:
 			slot_index = int(home_slot_hit.collider.get_meta("home_slot_index", -1))
 		if slot_index >= 0:
+			_begin_world_action()
 			_cancel_pending_collection()
 			placement_pending = false
 			if food_stage != null:
@@ -630,6 +919,7 @@ func _move_from_screen(screen_position: Vector2) -> bool:
 	var food_target_query := PhysicsRayQueryParameters3D.create(origin, end, FoodStage.TARGET_LAYER)
 	food_target_query.collide_with_areas = true
 	if not get_world_3d().direct_space_state.intersect_ray(food_target_query).is_empty():
+		_begin_world_action()
 		_cancel_pending_collection()
 		placement_pending = false
 		if home_stage != null:
@@ -637,16 +927,28 @@ func _move_from_screen(screen_position: Vector2) -> bool:
 		return food_stage.request_place()
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty() or not navigation.is_walkable(Vector2(hit.position.x, hit.position.z)):
-		status.text = "Escolhe um sítio livre no chão."
+		_show_feedback("Escolhe um sítio livre no chão.")
 		return false
 	return request_move(hit.position)
+
+
+## Closing the optional panel and dismissing an old celebration belongs to every
+## new world action, but never to opening the panel.
+func _begin_world_action() -> void:
+	_set_finish_panel_open(false)
+	_clear_stage_completion()
 
 
 func request_collect(branch: CollectibleBranch) -> bool:
 	if not branches.has(branch):
 		return false
+	# The durable dam completion closes dam-material collection immediately,
+	# even while the last branch is still flying to the structure.
+	if placed_count >= DAM_BRANCH_COUNT:
+		_show_feedback("A represa está pronta. Vamos construir a casa!")
+		return false
 	if home_stage != null and home_stage.is_active:
-		status.text = "A represa está pronta. Vamos construir a casa!"
+		_show_feedback("A represa está pronta. Vamos construir a casa!")
 		return false
 	if home_stage != null:
 		home_stage.cancel_pending()
@@ -659,9 +961,9 @@ func request_collect(branch: CollectibleBranch) -> bool:
 			_cancel_pending_collection()
 			actor.follow_path(PackedVector3Array())
 			destination.visible = false
-			status.text = "O castor continua a levar o mesmo ramo."
+			_show_feedback("O castor continua a levar o mesmo ramo.")
 			return true
-		status.text = "O ramo já está com o castor."
+		_show_feedback("O ramo já está com o castor.")
 		return true
 	if branch == pending_branch:
 		return true
@@ -670,15 +972,16 @@ func request_collect(branch: CollectibleBranch) -> bool:
 		pending_branch = null
 	var path := navigation.find_approach(actor.global_position, Vector2(branch.position.x, branch.position.z), 3)
 	if path.is_empty():
-		status.text = "Esse ramo está longe demais para chegar."
+		_show_feedback("Esse ramo está longe demais para chegar.")
 		return false
+	_begin_world_action()
 	actor.follow_path(path)
 	voice.cancel()
 	branch.reserve()
 	pending_branch = branch
 	destination.position = path[path.size() - 1] + Vector3.UP * 0.04
 	destination.visible = true
-	status.text = "O castor vai buscar o ramo."
+	_show_feedback("O castor vai buscar o ramo.")
 	_update_branch_cues()
 	return true
 
@@ -695,11 +998,12 @@ func request_move(world_position: Vector3) -> bool:
 	if not world_position.is_finite():
 		return false
 	if not navigation.is_walkable(Vector2(world_position.x, world_position.z)):
-		status.text = "Escolhe um sítio livre no chão."
+		_show_feedback("Escolhe um sítio livre no chão.")
 		return false
 	var path := navigation.find_path(actor.global_position, world_position)
 	if path.is_empty():
 		return false
+	_begin_world_action()
 	_cancel_pending_collection()
 	if home_stage != null:
 		home_stage.cancel_pending()
@@ -712,23 +1016,16 @@ func request_move(world_position: Vector3) -> bool:
 	actor.follow_path(path)
 	destination.position = Vector3(world_position.x, terrain.height_at(Vector2(world_position.x, world_position.z)) + 0.04, world_position.z)
 	destination.visible = true
-	status.text = "O círculo amarelo mostra o destino. Podes escolher outro."
+	_show_feedback("O círculo amarelo mostra o destino. Podes escolher outro.")
 	return true
 
 
 func _build_placement_target() -> void:
 	var bank_spot: Vector3 = layout.anchor(&"dam_approach")
-	placement_cue = _add_ground_ring(bank_spot, 0.9, Color("ffe17d"))
-	dam_target_cue = MeshInstance3D.new()
-	dam_target_cue.name = "DamTargetCue"
-	var dam_ring := TorusMesh.new()
-	dam_ring.inner_radius = 0.34
-	dam_ring.outer_radius = 0.48
-	dam_ring.material = Shapes.material(Color("ffe17d"))
-	dam_target_cue.mesh = dam_ring
-	dam_target_cue.position = placement_center + Vector3(0.0, 0.30, 0.0)
-	dam_target_cue.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(dam_target_cue)
+	# Destination cues are broken outlines: shape, not colour alone, separates a
+	# destination from the quiet closed pickup rings.
+	placement_cue = _add_destination_outline(bank_spot, 0.9, Color("ffe17d"))
+	dam_target_cue = _add_destination_outline(placement_center + Vector3(0.0, 0.30, 0.0), 0.55, Color("ffe17d"))
 	var finish_mesh := BoxMesh.new()
 	finish_mesh.size = Vector3(1.4, 0.07, 0.12)
 	var finish_material := StandardMaterial3D.new()
@@ -750,30 +1047,58 @@ func _build_placement_target() -> void:
 	collision.position = bank_spot + Vector3.UP * 0.5
 	placement_area.add_child(collision)
 	add_child(placement_area)
+	# The visible crest is also a placement target before completion: tapping the
+	# marked dam shape routes the beaver to the dry work position like the bank
+	# target, instead of rejecting the tap as invalid ground.
+	dam_placement_area = Area3D.new()
+	dam_placement_area.name = "DamCrestPlacementArea"
+	dam_placement_area.collision_layer = 8
+	dam_placement_area.collision_mask = 0
+	var crest_place_shape := BoxShape3D.new()
+	crest_place_shape.size = Vector3(5.6, 0.9, 1.1)
+	var crest_place_collision := CollisionShape3D.new()
+	crest_place_collision.shape = crest_place_shape
+	crest_place_collision.position = layout.dam_center() + Vector3(0.0, -0.12, 0.08)
+	dam_placement_area.add_child(crest_place_collision)
+	add_child(dam_placement_area)
+	# Optional finish control target: the visible crest of the completed dam.
+	# It stays disabled (layer 0) until the dam is complete, so the existing
+	# placement behaviour is unchanged before that point.
+	dam_crest_area = Area3D.new()
+	dam_crest_area.name = "DamCrestArea"
+	dam_crest_area.collision_layer = 0
+	dam_crest_area.collision_mask = 0
+	var crest_shape := BoxShape3D.new()
+	crest_shape.size = Vector3(5.6, 0.9, 1.1)
+	var crest_collision := CollisionShape3D.new()
+	crest_collision.shape = crest_shape
+	crest_collision.position = layout.dam_center() + Vector3(0.0, -0.12, 0.08)
+	dam_crest_area.add_child(crest_collision)
+	add_child(dam_crest_area)
 
 
 func request_place() -> bool:
 	if placement_pending:
 		return true
 	if placed_count >= DAM_BRANCH_COUNT:
-		status.text = "A represa está completa!"
+		_show_feedback("A represa está completa!")
 		return false
 	if home_stage != null:
 		home_stage.cancel_pending()
 	if food_stage != null:
 		food_stage.cancel_pending()
 	if carried_branch == null:
-		status.text = "Toca no ramo e depois na zona amarela."
+		_show_feedback("Toca no ramo e depois na zona amarela.")
 		voice.play_event("help_collect")
 		return false
 	if not _carried_branch_is_suitable():
 		incompatible_place_attempts += 1
 		if carried_branch.kind == CollectibleBranch.Kind.THICK:
-			status.text = "Este ramo é grosso. Roê-o primeiro ou escolhe outro."
+			_show_feedback("Este ramo é grosso. Roê-o primeiro ou escolhe outro.")
 		else:
-			status.text = "Este ramo está podre e dobra. Escolhe outro ramo."
+			_show_feedback("Este ramo está podre e dobra. Escolhe outro ramo.")
 		if incompatible_place_attempts >= 2:
-			status.text = "Ajuda: escolhe o ramo marcado a verde."
+			_show_feedback("Ajuda: escolhe o ramo marcado a verde.")
 			help_highlight_active = true
 			support_characters.show_hint()
 			voice.play_event("help_compatible")
@@ -782,9 +1107,10 @@ func request_place() -> bool:
 	var bank_spot: Vector3 = layout.anchor(&"dam_approach")
 	var path := navigation.find_path(actor.global_position, bank_spot)
 	if path.is_empty():
-		status.text = "A zona da represa está fora do caminho."
+		_show_feedback("A zona da represa está fora do caminho.")
 		return false
 	# Keep an in-progress pickup intact unless placement has a valid route.
+	_begin_world_action()
 	_cancel_pending_collection()
 	voice.cancel()
 	actor.follow_path(path)
@@ -794,7 +1120,7 @@ func request_place() -> bool:
 	placement_help_active = false
 	destination.position = bank_spot + Vector3.UP * 0.04
 	destination.visible = true
-	status.text = "O castor vai colocar o ramo."
+	_show_feedback("O castor vai colocar o ramo.")
 	_update_branch_cues()
 	return true
 
@@ -802,8 +1128,10 @@ func request_place() -> bool:
 func _update_water(animate: bool = true) -> void:
 	if water_surface == null or terrain == null or layout == null:
 		return
-	var levels: Array[float] = [terrain.initial_water_level(), terrain.intermediate_water_level(), terrain.full_water_level(), terrain.full_water_level()]
-	var target: float = levels[mini(placed_count, 3)]
+	# Immediate apply path used by restore, captures and tests. It also syncs the
+	# presented count because those paths show the committed result at once.
+	_presented_dam_count = placed_count
+	var target: float = _water_level_for(placed_count)
 	var previous := water_level
 	water_level = target
 	var clear_cache_xz := layout.food_cache_xz()
@@ -818,10 +1146,17 @@ func _update_water(animate: bool = true) -> void:
 			water_rise_tween = null
 		water_surface.position.y = 0.0
 	if visual_environment != null:
-		visual_environment.set_dam_state(placed_count, finish_choice)
+		visual_environment.set_dam_state(_presented_dam_count, finish_choice)
 		visual_environment.set_water_level(target)
 	if food_stage != null:
 		food_stage.set_water_level(target)
+
+
+## Prepared upstream levels: initial, intermediate, full, then full again for the
+## third structural placement, which confirms the dam without another rise.
+func _water_level_for(count: int) -> float:
+	var levels: Array[float] = [terrain.initial_water_level(), terrain.intermediate_water_level(), terrain.full_water_level(), terrain.full_water_level()]
+	return levels[mini(count, 3)]
 
 
 ## The upstream mesh is authored at its target level. Offsetting it to the old
@@ -911,65 +1246,43 @@ func _save_dam_state() -> bool:
 
 func _show_save_failure() -> void:
 	_save_failure_visible = true
-	status.text = "Não foi possível guardar o progresso. Pede ajuda a um adulto."
+	status.text = SAVE_FAILURE_TEXT
 
 
-func _set_status(text: String) -> void:
-	if _save_failure_visible:
-		return
-	status.text = text
-
-
+## Stage guidance is temporary feedback: it never replaces the permanent
+## objective line or a running celebration.
 func _on_stage_status(text: String) -> void:
-	_set_status(text)
+	_show_feedback(text)
 
 
 func _on_home_completed() -> void:
-	completion_feedback.visible = false
-	home_invite.visible = false
-	home_completion_feedback.position = Vector2(0, 515)
-	home_completion_feedback.visible = true
-	var pulse := create_tween()
-	pulse.tween_property(home_completion_feedback, "scale", Vector2(1.08, 1.08), 0.22).from(Vector2.ONE)
-	pulse.tween_property(home_completion_feedback, "scale", Vector2.ONE, 0.22)
+	_clear_stage_completion()
+	_show_stage_completion("A casa está pronta!")
 	food_stage.activate()
 
 
 func _on_home_part_placed(_count: int) -> void:
-	if not _save_dam_state():
+	var saved := _save_dam_state()
+	if not saved:
 		_show_save_failure()
+	_refresh_chapter_interface()
 
 
 func _on_food_activated() -> void:
-	get_node("CanvasLayer/DamProgress").visible = false
-	food_progress.visible = true
-	_update_food_progress()
-	home_invite.text = "Agora vamos guardar comida para o inverno!"
-	home_invite.visible = true
+	_refresh_chapter_interface()
 
 
 func _on_food_placed(_count: int) -> void:
-	_update_food_progress()
-	if not _save_dam_state():
+	var saved := _save_dam_state()
+	if not saved:
 		_show_save_failure()
-
-
-func _update_food_progress() -> void:
-	if food_progress == null or food_stage == null:
-		return
-	var symbols := "●".repeat(food_stage.placed_count) + "○".repeat(FoodStage.REQUIRED_COUNT - food_stage.placed_count)
-	food_progress.text = "Comida guardada: " + symbols
+	_refresh_chapter_interface()
 
 
 func _on_food_completed() -> void:
-	home_completion_feedback.visible = false
-	home_invite.visible = false
-	food_completion_feedback.position = Vector2(0, 515)
-	food_completion_feedback.visible = true
-	var pulse := create_tween()
-	pulse.tween_property(food_completion_feedback, "scale", Vector2(1.08, 1.08), 0.22).from(Vector2.ONE)
-	pulse.tween_property(food_completion_feedback, "scale", Vector2.ONE, 0.22)
-	await get_tree().create_timer(1.2).timeout
+	_clear_stage_completion()
+	_show_stage_completion("A comida está guardada!")
+	await get_tree().create_timer(2.0).timeout
 	if is_inside_tree() and food_stage.is_complete() and not winter_active:
 		_show_winter(true)
 
@@ -980,16 +1293,12 @@ func _show_winter(show_overlay: bool) -> void:
 	if home_stage != null:
 		home_stage.set_snow(true)
 	_set_winter_lighting(true)
-	completion_feedback.visible = false
-	home_completion_feedback.visible = false
-	food_completion_feedback.visible = false
-	home_invite.visible = false
-	get_node("CanvasLayer/DamProgress").visible = false
-	food_progress.visible = true
-	_update_food_progress()
-	_update_finish_choices(false)
+	_set_finish_panel_open(false)
+	_clear_stage_completion()
+	_refresh_chapter_interface()
 	winter_new_adventure_button.visible = true
-	_set_status("O inverno chegou! A família do castor está reunida.")
+	if ending_save_warning != null:
+		ending_save_warning.visible = _save_failure_visible
 	if show_overlay and not ending_overlay.visible:
 		ending_overlay.visible = true
 		voice.play_event("winter_arrived")
@@ -1012,10 +1321,13 @@ func _set_winter_lighting(active: bool) -> void:
 
 func _continue_visiting() -> void:
 	ending_overlay.visible = false
-	_set_status("Podes visitar o vale. A família está em casa.")
+	_refresh_chapter_interface()
 
 
 func _restore_dam_save() -> void:
+	# Restoring is an immediate, silent apply path: invalidate any scene-local
+	# presentation callback before showing the saved result.
+	_presentation_generation += 1
 	var result := DamSave.load_state(save_directory)
 	var state: Dictionary = result["state"]
 	var by_id: Dictionary = {}
@@ -1050,87 +1362,114 @@ func _restore_dam_save() -> void:
 	pending_branch = null
 	placement_pending = false
 	_update_water(false)
-	_update_progress_cue()
 	finish_choice = state["finish_choice"]
 	_update_finish_choices(state["stage_completed"])
-	completion_feedback.visible = false
-	home_completion_feedback.visible = false
-	food_completion_feedback.visible = false
+	# Restoring is silent: no celebration, no completion narration, no panel.
+	_set_finish_panel_open(false)
+	_clear_stage_completion()
 	if not state["stage_completed"]:
-		home_invite.visible = false
-		food_progress.visible = false
-		get_node("CanvasLayer/DamProgress").visible = true
-		status.text = "Clica no chão para andar."
+		_refresh_chapter_interface()
 		return
-	for sparkle in celebration_sparkles:
-		sparkle.visible = true
 	home_stage.activate()
 	home_stage.restore_slots(state["home_slots"])
-	_update_branch_cues()
 	if not home_stage.is_complete():
-		completion_feedback.visible = true
-		home_invite.text = "Agora vamos construir a casa!"
-		home_invite.visible = true
-		food_progress.visible = false
-		get_node("CanvasLayer/DamProgress").visible = true
-		status.text = "Agora vamos construir a casa! Escolhe uma peça."
-		voice.play_event("home_invite")
+		_refresh_chapter_interface()
 		return
-	completion_feedback.visible = false
-	home_invite.visible = false
-	get_node("CanvasLayer/DamProgress").visible = false
 	food_stage.activate_silent()
 	food_stage.restore_placements(state["food_placements"])
-	food_progress.visible = true
-	_update_food_progress()
 	if food_stage.is_complete():
 		_show_winter(false)
 	else:
-		home_invite.text = "Agora vamos guardar comida para o inverno!"
-		home_invite.visible = true
-		status.text = "Agora vamos guardar comida para o inverno! Escolhe um feixe."
-		voice.play_event("food_invite")
+		_refresh_chapter_interface()
 
 
 func _add_ground_ring(at: Vector3, radius: float, color: Color) -> MeshInstance3D:
 	var cue := MeshInstance3D.new()
 	var ring := TorusMesh.new()
-	ring.inner_radius = radius * 0.72
+	ring.inner_radius = radius * 0.82
 	ring.outer_radius = radius
 	ring.material = Shapes.material(color)
 	cue.mesh = ring
 	cue.position = at + Vector3.UP * 0.035
+	cue.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(cue)
 	return cue
 
 
+## Destination cue: a broken outline made of small segments, so shape (not
+## colour alone) separates it from the quiet closed pickup rings.
+func _add_destination_outline(at: Vector3, radius: float, color: Color) -> Node3D:
+	var cue := Node3D.new()
+	cue.position = at + Vector3.UP * 0.035
+	for index in range(8):
+		var angle := TAU * float(index) / 8.0
+		var segment := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(radius * 0.48, 0.035, maxf(radius * 0.10, 0.04))
+		mesh.material = Shapes.material(color)
+		segment.mesh = mesh
+		segment.position = Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+		segment.rotation.y = -angle - PI * 0.5
+		segment.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		cue.add_child(segment)
+	add_child(cue)
+	return cue
+
+
+func _set_destination_cue_color(cue: Node3D, color: Color) -> void:
+	for child in cue.get_children():
+		var segment := child as MeshInstance3D
+		if segment == null:
+			continue
+		var mesh := segment.mesh as BoxMesh
+		if mesh != null and mesh.material is StandardMaterial3D:
+			(mesh.material as StandardMaterial3D).albedo_color = color
+
+
 func _update_branch_cues() -> void:
 	var home_active: bool = home_stage != null and home_stage.is_active
+	# Materials stop being collectable the moment the third placement is
+	# durable, not only when the home stage activates after the flight. This
+	# closes the window where a reserved branch could be picked up during the
+	# home stage.
+	var branches_done: bool = home_active or placed_count >= DAM_BRANCH_COUNT
+	var carrying := _carried_branch_is_suitable()
 	for index in range(branches.size()):
 		var cue := branch_cues[index]
 		var available: bool = branches[index].state == 0 or branches[index].state == 1
-		cue.visible = available and not home_active
-		branches[index].visible = not (home_active and available)
-		if available and not home_active:
+		cue.visible = available and not branches_done
+		branches[index].visible = not (branches_done and available)
+		if available and not branches_done:
 			branches[index].hit_area.collision_layer = 4
 		elif branches[index].state == 0 or branches[index].state == 1:
 			branches[index].hit_area.collision_layer = 0
 		if branches[index] == pending_branch:
-			cue.scale = Vector3.ONE * 1.22
-			(cue.mesh as TorusMesh).material.albedo_color = Color("ffca45")
+			cue.scale = Vector3.ONE * 1.18
+			(cue.mesh as TorusMesh).material.albedo_color = PICKUP_ACTIVE_CUE_COLOR
 		else:
 			cue.scale = Vector3.ONE
-			(cue.mesh as TorusMesh).material.albedo_color = Color("fff0a3")
+			(cue.mesh as TorusMesh).material.albedo_color = PICKUP_MUTED_CUE_COLOR if carrying else PICKUP_CUE_COLOR
 		if help_highlight_active and branches[index] != carried_branch and branches[index].state == branches[index].State.FREE and _is_suitable_material(branches[index]):
-			(cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1")
-	if placement_cue != null:
-		placement_cue.visible = placed_count < DAM_BRANCH_COUNT
-		(placement_cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1") if placement_help_active else Color("ffe17d")
-	if dam_target_cue != null:
-		dam_target_cue.visible = placed_count < DAM_BRANCH_COUNT
-		(dam_target_cue.mesh as TorusMesh).material.albedo_color = Color("70e6a1") if placement_help_active else Color("ffe17d")
+			(cue.mesh as TorusMesh).material.albedo_color = HELP_CUE_COLOR
+	var destination_color := DESTINATION_CUE_COLOR
+	var destination_scale := Vector3.ONE
+	if placement_help_active:
+		destination_color = HELP_CUE_COLOR
+		destination_scale = Vector3.ONE * 1.18
+	elif carrying:
+		destination_color = DESTINATION_CARRY_CUE_COLOR
+		destination_scale = Vector3.ONE * 1.08
+	for destination_cue: Node3D in [placement_cue, dam_target_cue]:
+		if destination_cue == null:
+			continue
+		destination_cue.visible = placed_count < DAM_BRANCH_COUNT
+		destination_cue.scale = destination_scale
+		_set_destination_cue_color(destination_cue, destination_color)
 	if placement_area != null:
 		placement_area.collision_layer = 8 if placed_count < DAM_BRANCH_COUNT else 0
+	if dam_placement_area != null:
+		dam_placement_area.collision_layer = 8 if placed_count < DAM_BRANCH_COUNT else 0
+	_update_dam_crest_hit_target()
 
 
 func _is_suitable_material(branch: CollectibleBranch) -> bool:
@@ -1152,13 +1491,16 @@ func _collection_comment(branch: CollectibleBranch) -> String:
 
 
 func _update_obstacle_controls() -> void:
-	gnaw_button.visible = carried_branch != null and carried_branch.kind == CollectibleBranch.Kind.THICK and not carried_branch.gnawed
+	gnaw_button.visible = _current_stage() == "dam" and carried_branch != null and carried_branch.kind == CollectibleBranch.Kind.THICK and not carried_branch.gnawed
 	gnaw_button.modulate = Color.WHITE
 
 
 func request_gnaw() -> bool:
+	if _current_stage() != "dam":
+		return false
 	if carried_branch == null or carried_branch.kind != CollectibleBranch.Kind.THICK or carried_branch.gnawed:
 		return false
+	_begin_world_action()
 	actor.play_gnaw_action()
 	carried_branch.gnaw()
 	sfx.play_event("gnaw")
@@ -1166,7 +1508,8 @@ func request_gnaw() -> bool:
 	incompatible_place_attempts = 0
 	help_highlight_active = false
 	gnaw_button.visible = false
-	status.text = "O ramo ficou pronto para a represa!"
+	_refresh_chapter_interface()
+	_show_feedback("O ramo ficou pronto para a represa!")
 	if not save_ok:
 		_show_save_failure()
 	_update_branch_cues()
@@ -1174,23 +1517,26 @@ func request_gnaw() -> bool:
 
 
 func request_help() -> bool:
+	# Explicit help cancels obsolete guidance, including a running celebration.
+	if _completion_active:
+		_clear_stage_completion()
 	support_characters.show_hint()
 	if winter_active:
-		status.text = "O inverno chegou! Podes visitar o vale ou começar uma nova aventura."
+		_show_feedback("O inverno chegou! Podes visitar o vale ou começar uma nova aventura.", 3.0)
 		return true
 	if home_stage != null and home_stage.is_active and not home_stage.is_complete():
 		return home_stage.request_help()
 	if food_stage != null and food_stage.is_active and not food_stage.is_complete():
 		return food_stage.request_help()
 	if placed_count >= DAM_BRANCH_COUNT:
-		status.text = "Podes mudar o acabamento da represa nos botões abaixo."
+		_show_feedback("Toca na represa para mudar o acabamento.", 3.0)
 		return true
 	if pending_branch != null and carried_branch == null:
-		status.text = "O castor vai buscar o ramo. Podes esperar ou escolher outro."
+		_show_feedback("O castor vai buscar o ramo. Podes esperar ou escolher outro.", 3.0)
 		voice.play_event("help_collect")
 		return true
 	if carried_branch == null:
-		status.text = "Escolhe um ramo verde para levar até à represa."
+		_show_feedback("Escolhe um ramo verde para levar até à represa.", 3.0)
 		help_highlight_active = true
 		placement_help_active = false
 		voice.play_event("help_collect")
@@ -1198,12 +1544,12 @@ func request_help() -> bool:
 		return true
 	if carried_branch.kind == CollectibleBranch.Kind.THICK and not carried_branch.gnawed:
 		if incompatible_place_attempts >= 2:
-			status.text = "Ajuda: escolhe o ramo marcado a verde."
+			_show_feedback("Ajuda: escolhe o ramo marcado a verde.", 3.0)
 			help_highlight_active = true
 			placement_help_active = false
 			voice.play_event("help_compatible")
 		else:
-			status.text = "Este ramo é grosso. Podes roê-lo ou escolher outro."
+			_show_feedback("Este ramo é grosso. Podes roê-lo ou escolher outro.", 3.0)
 			gnaw_button.modulate = Color("fff0a3")
 			var pulse := create_tween()
 			pulse.tween_property(gnaw_button, "scale", Vector2(1.08, 1.08), 0.12).from(Vector2.ONE)
@@ -1213,17 +1559,17 @@ func request_help() -> bool:
 		return true
 	if carried_branch.kind == CollectibleBranch.Kind.ROTTEN:
 		if incompatible_place_attempts >= 2:
-			status.text = "Ajuda: escolhe o ramo marcado a verde."
+			_show_feedback("Ajuda: escolhe o ramo marcado a verde.", 3.0)
 			help_highlight_active = true
 			voice.play_event("help_compatible")
 		else:
-			status.text = "O ramo podre dobrou! Escolhe outro ramo."
+			_show_feedback("O ramo podre dobrou! Escolhe outro ramo.", 3.0)
 			help_highlight_active = true
 			voice.play_event("rotten_branch")
 		placement_help_active = false
 		_update_branch_cues()
 		return true
-	status.text = "Leva o ramo até à zona amarela da represa."
+	_show_feedback("Leva o ramo até à zona amarela da represa.", 3.0)
 	help_highlight_active = false
 	placement_help_active = true
 	voice.play_event("help_place")
@@ -1240,12 +1586,14 @@ func select_finish_choice(choice_id: String) -> bool:
 	var save_ok := _save_dam_state()
 	if not save_ok:
 		_show_save_failure()
+	_close_finish_panel()
+	_refresh_chapter_interface()
 	return true
 
 
 func _apply_finish_choice() -> void:
 	if visual_environment != null:
-		visual_environment.set_dam_state(placed_count, finish_choice)
+		visual_environment.set_dam_state(_presented_dam_count, finish_choice)
 	if finish_trim == null:
 		return
 	finish_trim.visible = not finish_choice.is_empty()
@@ -1255,21 +1603,19 @@ func _apply_finish_choice() -> void:
 		(finish_trim.mesh as BoxMesh).material.albedo_color = Color("668b59")
 
 
+## The finish remains optional and can be changed during later stages. This only
+## updates the control states; it never opens or closes the panel by itself.
 func _update_finish_choices(is_complete: bool) -> void:
-	if finish_prompt == null:
+	if finish_panel == null:
 		return
-	finish_prompt.visible = is_complete
+	var available := is_complete and _presented_dam_count >= DAM_BRANCH_COUNT
 	for choice_id: String in finish_choice_buttons:
 		var finish_button: Button = finish_choice_buttons[choice_id]
-		finish_button.visible = is_complete
+		finish_button.disabled = not available
 		finish_button.button_pressed = choice_id == finish_choice
+	if not available:
+		_set_finish_panel_open(false)
 	_apply_finish_choice()
-
-
-func _update_progress_cue() -> void:
-	var progress: Label = get_node("CanvasLayer/DamProgress")
-	var symbols := "●".repeat(placed_count) + "○".repeat(DAM_BRANCH_COUNT - placed_count)
-	progress.text = "Ramos na represa: " + symbols
 
 
 func _build_celebration_sparkles() -> void:
@@ -1306,6 +1652,7 @@ func _play_celebration() -> void:
 
 
 func _confirm_restart() -> void:
+	_set_finish_panel_open(false)
 	restart_dialog.popup_centered()
 
 
@@ -1351,8 +1698,7 @@ func _capture_water() -> void:
 		return
 	placed_count = 0
 	_update_water(false)
-	_update_progress_cue()
-	_update_branch_cues()
+	_refresh_chapter_interface()
 	await get_tree().create_timer(0.2).timeout
 	var ok: bool = await _save_camera_capture("water_initial.png")
 	var thick: CollectibleBranch = branches[0]
@@ -1370,17 +1716,91 @@ func _capture_water() -> void:
 		branch.place(self, placement_center, placed_count)
 		placed_count += 1
 		_update_water(true)
-		_update_progress_cue()
-		_update_branch_cues()
+		_refresh_chapter_interface()
 		await get_tree().create_timer(1.0).timeout
 		var saved: bool = await _save_camera_capture(names[index])
 		ok = saved and ok
 	if placed_count == DAM_BRANCH_COUNT:
 		home_stage.activate()
-		_update_finish_choices(true)
+		_refresh_chapter_interface()
+		_set_finish_panel_open(false)
 		ok = _save_dam_state() and ok
 	if ok:
 		print("CASTOR_GRAPHICS_OK water_capture")
+	get_tree().quit(0 if ok else 1)
+
+
+## P1 evidence: the same completed-dam view with the optional finish panel open
+## and after closing it. Uses the isolated capture save and never the player save.
+func _capture_finish() -> void:
+	_set_capture_window_size()
+	await get_tree().create_timer(0.4).timeout
+	if save_directory != "user://capture_save/":
+		push_error("Finish capture refused to use a non-isolated save directory.")
+		get_tree().quit(1)
+		return
+	if not _prepare_capture_completed_dam():
+		get_tree().quit(1)
+		return
+	home_stage.activate()
+	_refresh_chapter_interface()
+	_set_finish_panel_open(true)
+	await get_tree().process_frame
+	var open_ok: bool = await _save_camera_capture("finish_panel_open.png")
+	_set_finish_panel_open(false)
+	await get_tree().process_frame
+	var closed_ok: bool = await _save_camera_capture("finish_panel_closed.png")
+	if open_ok and closed_ok:
+		print("CASTOR_GRAPHICS_OK finish_capture")
+	get_tree().quit(0 if open_ok and closed_ok else 1)
+
+
+## P2 evidence: the first placement while the branch is still in flight, the
+## same placement after its response, and the completed dam after the final
+## celebration. All from the play camera on the isolated capture save.
+func _capture_placement() -> void:
+	_set_capture_window_size()
+	await get_tree().create_timer(0.4).timeout
+	if save_directory != "user://capture_save/":
+		push_error("Placement capture refused to use a non-isolated save directory.")
+		get_tree().quit(1)
+		return
+	var normal_branches: Array[CollectibleBranch] = []
+	for branch in branches:
+		if branch.stable_id in ["branch_normal_01", "branch_normal_02", "branch_normal_03"]:
+			normal_branches.append(branch)
+	if normal_branches.size() != 3:
+		push_error("Placement capture could not find three normal branches for a complete dam.")
+		get_tree().quit(1)
+		return
+	var ok := true
+	var first := normal_branches[0]
+	request_collect(first)
+	await _wait_for_capture(func() -> bool: return carried_branch == first)
+	request_place()
+	await _wait_for_capture(func() -> bool: return placed_count == 1)
+	# The 0.45 s flight starts at the commit; capture it part-way through.
+	await get_tree().create_timer(0.16).timeout
+	ok = await _save_camera_capture("placement_first_flight.png") and ok
+	await _wait_for_capture(func() -> bool: return visual_environment.get_visible_dam_log_count() == 1)
+	await get_tree().create_timer(0.75).timeout
+	ok = await _save_camera_capture("placement_first_done.png") and ok
+	for index in range(1, 3):
+		var expected: int = index + 1
+		var branch := normal_branches[index]
+		request_collect(branch)
+		await _wait_for_capture(func() -> bool: return carried_branch == branch)
+		request_place()
+		await _wait_for_capture(func() -> bool: return placed_count == expected)
+		await _wait_for_capture(func() -> bool: return visual_environment.get_visible_dam_log_count() == expected)
+	# The final response celebrates for 2.0 s; capture after it, with the
+	# optional panel closed so the completed structure stays readable.
+	await get_tree().create_timer(2.2).timeout
+	_set_finish_panel_open(false)
+	await get_tree().process_frame
+	ok = await _save_camera_capture("placement_final_done.png") and ok
+	if ok:
+		print("CASTOR_GRAPHICS_OK placement_capture")
 	get_tree().quit(0 if ok else 1)
 
 
@@ -1426,10 +1846,7 @@ func _capture_home() -> void:
 		get_tree().quit(1)
 		return
 	home_stage.activate()
-	_update_branch_cues()
-	home_invite.visible = true
-	home_invite.text = "Agora vamos construir a casa!"
-	status.text = "Agora vamos construir a casa! Escolhe uma peça."
+	_refresh_chapter_interface()
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var initial_error := get_viewport().get_texture().get_image().save_png("user://home.png")
@@ -1464,10 +1881,7 @@ func _capture_food() -> void:
 	home_stage.activate()
 	_update_branch_cues()
 	await _capture_build_home()
-	_update_branch_cues()
-	home_invite.text = "Agora vamos guardar comida para o inverno!"
-	home_invite.visible = true
-	status.text = "Agora vamos guardar comida para o inverno! Escolhe um feixe."
+	_refresh_chapter_interface()
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var initial_error := get_viewport().get_texture().get_image().save_png("user://food.png")
@@ -1562,9 +1976,8 @@ func _prepare_capture_completed_dam() -> bool:
 		placed_count += 1
 	finish_choice = "finish_golden"
 	_update_water(false)
-	_update_progress_cue()
-	_update_branch_cues()
-	_update_finish_choices(false)
+	_refresh_chapter_interface()
+	_set_finish_panel_open(false)
 	if placed_count != DAM_BRANCH_COUNT or not _save_dam_state():
 		push_error("Capture setup could not save a valid completed dam in the isolated capture save.")
 		return false

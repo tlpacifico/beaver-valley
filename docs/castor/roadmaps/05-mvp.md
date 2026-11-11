@@ -4,6 +4,8 @@
 
 **Goal:** deliver an installed build that is comfortable to play on the priority device. Depends on the complete chapter and the accepted visual valley from milestone 4b, with its validation status recorded. Releasing here means making it available to your daughter; not publishing on a store.
 
+The [construction and valley polish design](../construction-polish-design.md) and [implementation plan](../construction-polish-plan.md) detail the agreed order: contextual guidance and placement feedback, child observation, then consistent lodge/food presentation, river/lighting and vegetation. They refine 4b and prepare the checks below; their existence does not start or validate milestone 5.
+
 This milestone finalizes and optimizes the production already integrated in milestones 3b–4b. River/terrain composition, essential lodge and food presentation, and the coherent visual set belong to 4b; if those remain unbuilt, return to that phase rather than treating them as polish. It does not concentrate the modeling of the whole game: follow [characters P4](3d-characters.md) and [environment A4](3d-environment.md), with the [inventory](../3d-production.md) up to date.
 
 ## Learn
@@ -31,4 +33,4 @@ Your daughter can play, complete the chapter with the help of the game itself, r
 
 If the test shows disinterest or confusion, go back to the corresponding milestone to adjust the experience. More content or more detailed art do not replace an understandable interaction.
 
-**After the MVP:** decide with you whether the next goal is to improve the chapter, support the second device with the same care, test with other families or prepare a public release.
+**Expansion direction agreed on 11 November 2026:** the [gameplay and seasons roadmap](seasonal-gameplay-expansion.md) orders richer dam construction and autumn/winter/spring continuation by increasing difficulty. It preserves delivery of the existing family MVP; completing every expansion is not a condition for closing this milestone. A second device, other families or a public release remain separate decisions.

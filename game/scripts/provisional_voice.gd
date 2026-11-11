@@ -1,5 +1,9 @@
 extends Node
 ## Plays replaceable local voice clips and serializes events through one player.
+## The player never advances gameplay: it only reports a finished event, and the
+## world decides whether that event is still valid for the current stage.
+
+signal event_finished(event_id: String)
 
 const LINES: Dictionary = {
 	"dam_start": preload("res://audio/voice/dam_start.wav"),
@@ -32,10 +36,13 @@ func _ready() -> void:
 
 
 func _on_finished() -> void:
+	# `active_event` is the pending event token: cancel() clears it, so a late
+	# callback after cancellation is ignored instead of replaying old guidance.
 	var completed_event := active_event
+	if completed_event.is_empty():
+		return
 	active_event = ""
-	if completed_event == "dam_completed":
-		play_event("home_invite")
+	event_finished.emit(completed_event)
 
 
 func play_event(event_id: String) -> void:
@@ -48,6 +55,7 @@ func play_event(event_id: String) -> void:
 		player.play()
 
 
+## Stops the current line and invalidates its pending completion.
 func cancel() -> void:
 	player.stop()
 	active_event = ""

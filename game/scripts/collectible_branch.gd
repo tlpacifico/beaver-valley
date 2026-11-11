@@ -2,6 +2,10 @@ class_name CollectibleBranch
 extends Node3D
 ## One branch with a stable origin and a simple interaction collider.
 
+## Emitted once when an animated placement reaches its final transform. Instant
+## placement and restore never emit it; presentation timers are not saved.
+signal placement_visual_finished(slot_index: int)
+
 enum State { FREE, RESERVED, CARRIED, PLACED }
 enum Kind { NORMAL, THICK, ROTTEN }
 
@@ -17,6 +21,8 @@ var bent: bool = false
 var placed_slot: int = -1
 var thick_bulge: MeshInstance3D
 var gnaw_scars: Array[MeshInstance3D] = []
+var _flight_tween: Tween
+var _flight_generation: int = 0
 
 
 func _ready() -> void:
@@ -125,6 +131,8 @@ func _add_gnaw_scars() -> void:
 
 
 func carry(parent: Node3D, offset: Vector3 = DEFAULT_CARRY_OFFSET, roll: float = deg_to_rad(-15.0)) -> void:
+	_cancel_flight()
+	_flight_generation += 1
 	state = State.CARRIED
 	if get_parent() != parent:
 		var world_transform := global_transform
@@ -157,12 +165,15 @@ func place(parent: Node3D, target_position: Vector3, slot_index: int, animate: b
 	position = target_position + Vector3((slot_index - 1) * 0.48, 0.18, 0.0)
 	rotation = Vector3(0.0, 0.0, deg_to_rad(-15.0))
 	hit_area.collision_layer = 0
+	_cancel_flight()
+	_flight_generation += 1
 	if animate and is_inside_tree():
+		var generation := _flight_generation
 		var end_global := global_transform
 		global_transform = start_global
-		var flight := create_tween()
-		flight.tween_method(_set_flight_transform.bind(start_global, end_global), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		flight.tween_callback(func() -> void: global_transform = end_global)
+		_flight_tween = create_tween()
+		_flight_tween.tween_method(_set_flight_transform.bind(start_global, end_global), 0.0, 1.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		_flight_tween.tween_callback(func() -> void: _finish_flight(generation, slot_index, end_global))
 
 
 ## Interpolate the complete transform, including the placement orientation, so
@@ -173,7 +184,28 @@ func _set_flight_transform(progress: float, start: Transform3D, end: Transform3D
 	global_transform = Transform3D(basis, origin)
 
 
+## Report the visual completion exactly once for the latest animated placement.
+## A branch freed or removed mid-flight never reaches this callback; a newer
+## placement invalidates the older generation.
+func _finish_flight(generation: int, slot_index: int, end_global: Transform3D) -> void:
+	if generation != _flight_generation:
+		return
+	_flight_tween = null
+	if not is_inside_tree():
+		return
+	global_transform = end_global
+	placement_visual_finished.emit(slot_index)
+
+
+func _cancel_flight() -> void:
+	if _flight_tween != null and _flight_tween.is_valid():
+		_flight_tween.kill()
+	_flight_tween = null
+
+
 func return_to_origin(world: Node3D) -> void:
+	_cancel_flight()
+	_flight_generation += 1
 	state = State.FREE
 	placed_slot = -1
 	if get_parent() != world:

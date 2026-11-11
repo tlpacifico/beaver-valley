@@ -35,11 +35,18 @@ func _run() -> void:
 	var dam: Vector3 = layout.anchor(&"dam_approach")
 	_expect(navigation.is_walkable(Vector2(spawn.x, spawn.z)), "Spawn is not walkable.")
 	_expect(navigation.is_walkable(Vector2(lodge.x, lodge.z)), "Lodge anchor is not walkable.")
+	_expect(navigation.is_walkable(Vector2(dam.x, dam.z)), "Dam approach is not walkable.")
+	_expect(not terrain.is_water_footprint(Vector2(dam.x, dam.z)), "Dam approach sits in the maximum lake footprint.")
+	_expect(terrain.slope_degrees(Vector2(dam.x, dam.z)) <= ValleyTerrain.ROUTE_SLOPE_LIMIT_DEGREES, "Dam approach exceeds the route slope limit.")
+	var dam_center := layout.dam_center()
+	var crest_overlap: bool = absf(dam.x - dam_center.x) < 2.8 + 1.6 and absf(dam.z - (dam_center.z + 0.08)) < 0.55 + 1.1
+	_expect(not crest_overlap, "Dam approach placement area overlaps the dam crest target.")
 	_expect(not navigation.is_walkable(Vector2(terrain.lake_center().x, terrain.lake_center().y)), "Lake centre must not be walkable.")
 	_expect(not navigation.is_walkable(Vector2(-8.0, -5.0)), "Hill outside the playable rect must not be walkable.")
 
 	_check_path(terrain, navigation, spawn, lodge, "spawn→lodge")
 	_check_path(terrain, navigation, spawn, food, "spawn→food")
+	_check_path(terrain, navigation, spawn, dam, "spawn→dam")
 	_check_path(terrain, navigation, dam, lodge, "dam→lodge")
 
 	var first := navigation.find_path(spawn, lodge)
@@ -54,7 +61,7 @@ func _run() -> void:
 		_expect(Vector2(last.x, last.z).distance_to(Vector2(lodge.x, lodge.z)) <= 1.6, "Approach does not end near the lodge.")
 
 	if failures == 0:
-		print("CASTOR_VALLEY_NAVIGATION_OK grid water slope approach determinism")
+		print("CASTOR_VALLEY_NAVIGATION_OK grid water slope approach dam_approach_clear determinism")
 	quit(0 if failures == 0 else 1)
 
 
