@@ -44,16 +44,26 @@ switch ($Action) {
         if ($LASTEXITCODE -ne 0) { throw 'The valley terrain test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/valley_water_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The valley water test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/river_flow_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The river flow test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/valley_collision_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The valley collision test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/valley_navigation_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The valley navigation test failed.' }
+        & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/grove_loop_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The grove loop test failed.' }
+        & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/tree_branch_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The tree branch test failed.' }
+        & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/mixed_material_sources_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The mixed material sources test failed.' }
         & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/valley_traversal_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The valley traversal test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/valley_preview_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The valley preview test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/dam_save_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The dam save test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/dam_recipe_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The dam recipe test failed.' }
         & $godotConsole --headless --path $gamePath --fixed-fps 60 --script res://tests/save_fixture_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The save fixture test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/home_stage_test.gd
@@ -66,6 +76,8 @@ switch ($Action) {
         if ($LASTEXITCODE -ne 0) { throw 'The support character test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/visual_environment_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The visual environment test failed.' }
+        & $godotConsole --headless --path $gamePath --script res://tests/natural_scenery_test.gd
+        if ($LASTEXITCODE -ne 0) { throw 'The natural scenery test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/beaver_actor_test.gd
         if ($LASTEXITCODE -ne 0) { throw 'The beaver actor test failed.' }
         & $godotConsole --headless --path $gamePath --script res://tests/asset_import_test.gd

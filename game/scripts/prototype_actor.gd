@@ -52,6 +52,16 @@ func follow_path(path: PackedVector3Array) -> void:
 	waypoints = path
 
 
+## Turn the body in place so an authored interaction starts with the model facing
+## its target. Uses the same heading convention as the walking rotation, so the
+## carried item and the nose keep agreeing with the movement direction.
+func face_towards(world_xz: Vector2) -> void:
+	var offset := world_xz - Vector2(position.x, position.z)
+	if offset.length_squared() <= 0.000001:
+		return
+	rotation.y = atan2(-offset.x, -offset.y)
+
+
 func is_arrived() -> bool:
 	return waypoints.is_empty()
 

@@ -10,12 +10,21 @@ enum State { FREE, RESERVED, CARRIED, PLACED }
 enum Kind { NORMAL, THICK, ROTTEN }
 
 const DEFAULT_CARRY_OFFSET := Vector3(0.0, 0.95, -0.55)
+const STONE_SCALES: Array[Vector3] = [
+	Vector3(0.84, 0.68, 0.74), Vector3(0.68, 0.90, 0.72), Vector3(0.96, 0.62, 0.78),
+	Vector3(0.74, 0.72, 0.96), Vector3(0.88, 0.82, 0.62),
+]
+const STONE_COLORS: Array[Color] = [
+	Color("8a9183"), Color("929184"), Color("788a83"), Color("a09583"), Color("7f858f"),
+]
 
 var state: State = State.FREE
 var origin: Vector3
 var hit_area: Area3D
 var stable_id: String = ""
 var kind: Kind = Kind.NORMAL
+var material_type: String = "branch"
+var material_variant: int = 0
 var gnawed: bool = false
 var bent: bool = false
 var placed_slot: int = -1
@@ -27,6 +36,7 @@ var _flight_generation: int = 0
 
 func _ready() -> void:
 	origin = position
+	_build_material_visual()
 	hit_area = Area3D.new()
 	hit_area.collision_layer = 4
 	hit_area.collision_mask = 0
@@ -57,6 +67,60 @@ func configure_branch(branch_kind: Kind, identifier: String) -> void:
 		_add_thick_bulge()
 	elif kind == Kind.ROTTEN:
 		_set_color(Color("6f7950"))
+
+
+func configure_material(type: String, identifier: String, variant: int = 0) -> void:
+	material_type = type
+	stable_id = identifier
+	material_variant = posmod(variant, STONE_SCALES.size())
+
+
+func _build_material_visual() -> void:
+	if material_type == "branch":
+		return
+	var branch_model := get_node_or_null("BranchModel") as Node3D
+	if branch_model != null:
+		branch_model.visible = false
+	var model := Node3D.new()
+	model.name = "MaterialModel"
+	add_child(model)
+	if material_type == "log":
+		_add_log_piece(model, 1.02, 0.18, Color("765033"), Vector3.ZERO)
+		_add_log_piece(model, 0.025, 0.145, Color("c69b62"), Vector3(-0.49, 0.0, 0.0))
+		_add_log_piece(model, 0.025, 0.145, Color("c69b62"), Vector3(0.49, 0.0, 0.0))
+	elif material_type == "stone":
+		var stone := MeshInstance3D.new()
+		stone.name = "CollectibleStoneModel"
+		var mesh := SphereMesh.new()
+		mesh.radial_segments = 8
+		mesh.rings = 4
+		mesh.radius = 0.25
+		mesh.height = 0.32
+		var material := StandardMaterial3D.new()
+		material.albedo_color = STONE_COLORS[material_variant]
+		material.roughness = 0.96
+		mesh.material = material
+		stone.mesh = mesh
+		stone.scale = STONE_SCALES[material_variant]
+		stone.rotation = Vector3(0.12 * float(material_variant % 3), 0.31 * float(material_variant), 0.08 * float(material_variant % 2))
+		stone.position.y = 0.16
+		model.add_child(stone)
+
+
+func _add_log_piece(parent: Node3D, length: float, radius: float, color: Color, at: Vector3) -> void:
+	var piece := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = radius
+	cylinder.bottom_radius = radius
+	cylinder.height = length
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.94
+	cylinder.material = material
+	piece.mesh = cylinder
+	piece.rotation.z = PI * 0.5
+	piece.position = at + Vector3(0.0, radius + 0.02, 0.0)
+	parent.add_child(piece)
 
 
 func _set_color(color: Color) -> void:

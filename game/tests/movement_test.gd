@@ -29,6 +29,7 @@ func _wait(condition: Callable, timeout_seconds: float = 15.0) -> bool:
 
 func _run() -> void:
 	_expect(DamSave.clear_save(SAVE_TEST_DIRECTORY), "Could not clear the integration-test save directory.")
+	_expect(_seed_legacy_save(SAVE_TEST_DIRECTORY), "Could not seed the integration-test directory with a legacy recipe.")
 	await _run_dam_regressions()
 	root.size = Vector2i(960, 600)
 	var world: Node = load("res://scenes/movement.tscn").instantiate()
@@ -48,7 +49,7 @@ func _run() -> void:
 	_expect(absf(world.actor.global_position.y - spawn_ground) <= 0.15, "A fresh chapter did not spawn safely on the terrain surface.")
 
 	_expect(world.terrain != null and world.navigation != null, "The chapter is not using the shared terrain/navigation.")
-	_expect(world.navigation.get_cell_count() == 572, "The shared navigation grid is not 26 × 22 cells.")
+	_expect(world.navigation.get_cell_count() == 704, "The expanded shared navigation grid is not 32 × 22 cells.")
 	_expect(world.branches.size() == 5 and world.branch_cues.size() == 5, "The chapter does not expose five branches.")
 	_expect(world.branches.all(func(branch: Node3D) -> bool: return branch.global_position.y > world.terrain.full_water_level()), "A branch is not grounded on dry land.")
 	_expect(world.status.text == "Escolhe um ramo para a represa.", "The initial instruction is not the current dam objective.")
@@ -67,7 +68,8 @@ func _run() -> void:
 	world.voice.play_event("help_collect")
 	_expect(world.request_help() and world.incompatible_place_attempts == 0, "Help was unavailable before incompatible placement attempts or changed the attempt counter.")
 	_expect(world.support_characters._owl.visible and world.help_highlight_active, "No-material help did not show the owl or highlight a suitable branch.")
-	_expect(world.branch_cues.size() == 5 and world.branch_cues.all(func(cue: MeshInstance3D) -> bool: return cue.visible), "Available branches do not have persistent visual selection cues.")
+	_expect(world.branch_cues.size() == 5 and world.branch_cues.slice(0, 4).all(func(cue: MeshInstance3D) -> bool: return cue.visible), "Available ground branches do not have persistent visual selection cues.")
+	_expect(not world.branch_cues[4].visible and not world.branches[4].visible, "The tree branch is exposed before the tree is cut.")
 	_expect(world.placement_cue != null and world.placement_cue.visible, "Dam target does not have a persistent visual cue.")
 	_expect(world.dam_target_cue != null and world.dam_target_cue.visible, "The dam crest has no second placement marker.")
 	_expect(world.progress_label.text == "Ramos na represa: ○○○", "Initial dam progress is not shown visually.")
@@ -109,8 +111,10 @@ func _run() -> void:
 	_expect(not world._move_from_screen(world.camera.unproject_position(water_point + Vector3.UP * 0.2)), "A tap on the lake started movement.")
 	_expect(not world.request_move(Vector3(-8.0, 0.0, -5.0)), "A tap outside the playable bank started movement.")
 
-	# Real input ray on a raised branch clearing.
-	var branch: Node = world.branches[4]
+	# Real input ray on a raised branch clearing. branch_normal_03 now belongs to
+	# the interactive tree, so the ray uses a ground branch; the tree path has its
+	# own checks below.
+	var branch: Node = world.branches[3]
 	var branch_screen: Vector2 = world.camera.unproject_position(branch.global_position + Vector3.UP * 0.15)
 	_expect(world._move_from_screen(branch_screen), "Tapping a branch on the raised bank did not start collection.")
 	_expect(await _wait(func() -> bool: return world.actor.current_animation == &"Walk", 5.0), "The new beaver did not play Walk while approaching the branch.")
@@ -192,6 +196,7 @@ func _place_home_part(home: Node, part: Node, slot_index: int) -> bool:
 
 func _run_dam_regressions() -> void:
 	_expect(DamSave.clear_save(REGRESSION_SAVE_DIRECTORY), "Could not clear the regression-test save directory.")
+	_expect(_seed_legacy_save(REGRESSION_SAVE_DIRECTORY), "Could not seed the regression-test directory with a legacy recipe.")
 	root.size = Vector2i(960, 600)
 	var world: Node = load("res://scenes/movement.tscn").instantiate()
 	world.save_directory = REGRESSION_SAVE_DIRECTORY
@@ -227,6 +232,11 @@ func _run_dam_regressions() -> void:
 	_expect(thick.state == CollectibleBranch.State.FREE and thick.gnawed, "Swapping away the thick branch lost its solved state.")
 	_expect(world.request_place() and world.request_place(), "Repeated dam targeting was not accepted safely.")
 	_expect(await _wait(func() -> bool: return world.placed_count == 1), "First normal branch was not placed exactly once.")
+
+	# E2: branch_normal_03 is supplied only by the interactive tree. The
+	# normal-only dam needs the authored cut once, then the branch is collectable.
+	_expect(world.request_gnaw_tree(), "The interactive tree could not be selected for the normal-only dam.")
+	_expect(await _wait(func() -> bool: return world.tree_cut == true, 20.0), "The interactive tree did not finish its authored fall.")
 
 	for branch_index in [3, 4]:
 		var branch: CollectibleBranch = world.branches[branch_index]
@@ -265,3 +275,7 @@ func _run_dam_regressions() -> void:
 	restored.queue_free()
 	await process_frame
 	_expect(DamSave.clear_save(REGRESSION_SAVE_DIRECTORY), "Could not clean up the regression-test save directory.")
+
+
+func _seed_legacy_save(directory: String) -> bool:
+	return DamSave.save_state(DamSave.empty_state(DamSave.LEGACY_RECIPE_ID), directory)

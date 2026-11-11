@@ -2,9 +2,10 @@ class_name ValleyNavigation
 extends RefCounted
 ## Shared 0.5 m AStarGrid2D routing over the authored terrain. A cell is solid
 ## when it is outside the playable rect, inside the maximum water footprint or
-## channel, steeper than the route limit, or too close to such a cell for the
-## actor's 0.26 m capsule. Paths are returned in world space, lifted onto the
-## same triangles used for collision.
+## channel, steeper than the route limit, too close to such a cell for the
+## actor's 0.26 m capsule, or inside the clearance reserved by an authored grove
+## obstacle. Paths are returned in world space, lifted onto the same triangles
+## used for collision.
 
 const CELL_SIZE: float = 0.5
 const ACTOR_RADIUS: float = 0.26
@@ -13,14 +14,23 @@ const WAYPOINT_LIFT: float = 0.05
 const INVALID_CELL := Vector2i(-999999, -999999)
 
 var _terrain: ValleyTerrain
+var _grove_obstacles: Array[Dictionary] = []
 var _astar := AStarGrid2D.new()
 var _origin: Vector2 = Vector2.ZERO
 var _columns: int = 0
 var _rows: int = 0
 
 
-func configure(terrain: ValleyTerrain) -> void:
+## Builds the shared 0.5 m grid. With a layout, the authored grove is excluded
+## from every walkable cell; omitting the layout keeps terrain-only routing for
+## callers that do not know the scenery.
+func configure(terrain: ValleyTerrain, layout: ValleyLayout = null) -> void:
 	_terrain = terrain
+	# Keep the typed array: assigning the untyped empty literal directly to
+	# _grove_obstacles fails at runtime when a caller wants terrain-only routing.
+	_grove_obstacles = []
+	if layout != null:
+		_grove_obstacles = layout.grove_obstacles()
 	_origin = ValleyTerrain.PLAYABLE_RECT.position
 	_columns = int(round(ValleyTerrain.PLAYABLE_RECT.size.x / CELL_SIZE))
 	_rows = int(round(ValleyTerrain.PLAYABLE_RECT.size.y / CELL_SIZE))
@@ -62,6 +72,21 @@ func is_walkable(world_xz: Vector2) -> bool:
 	if is_cell_solid(cell):
 		return false
 	return _is_point_walkable(world_xz)
+
+
+## True inside the clearance the authored grove reserves for the actor's body,
+## boundary included.
+func is_obstacle_blocked(world_xz: Vector2) -> bool:
+	for obstacle in _grove_obstacles:
+		var limit: float = float(obstacle["radius"]) + ACTOR_RADIUS + CLEARANCE_MARGIN
+		var obstacle_xz: Vector2 = obstacle["xz"]
+		if world_xz.distance_squared_to(obstacle_xz) <= limit * limit:
+			return true
+	return false
+
+
+func obstacle_count() -> int:
+	return _grove_obstacles.size()
 
 
 func nearest_walkable_cell(world_xz: Vector2, max_radius: int = 2) -> Vector2i:
@@ -157,7 +182,9 @@ func _is_point_walkable(point: Vector2) -> bool:
 		return false
 	if _terrain.is_water_footprint(point):
 		return false
-	return _terrain.slope_degrees(point) <= ValleyTerrain.ROUTE_SLOPE_LIMIT_DEGREES
+	if _terrain.slope_degrees(point) > ValleyTerrain.ROUTE_SLOPE_LIMIT_DEGREES:
+		return false
+	return not is_obstacle_blocked(point)
 
 
 func _cells_to_world(cells: Array[Vector2i]) -> PackedVector3Array:

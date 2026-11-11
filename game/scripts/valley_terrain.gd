@@ -4,7 +4,8 @@ extends RefCounted
 ## One height grid backs the visible mesh, height queries, water and later
 ## collision/navigation. R1 only renders it; no physics is created here.
 
-const PLAYABLE_RECT := Rect2(-6.5, -5.5, 13.0, 11.0)
+const WATER_FLOW_SHADER: Shader = preload("res://shaders/water_flow.gdshader")
+const PLAYABLE_RECT := Rect2(-6.5, -5.5, 16.0, 11.0)
 const VARIANTS: Array[StringName] = [&"gentle", &"pronounced", &"wide_bank"]
 const ROUTE_SLOPE_LIMIT_DEGREES: float = 20.0
 const GRID_STEP: float = 0.25
@@ -23,6 +24,18 @@ const WATER_REACH_ALL: int = 0
 const WATER_REACH_UPSTREAM: int = 1
 const WATER_REACH_DOWNSTREAM: int = -1
 const SKIRT_DEPTH: float = 1.8
+## E1 visible current: one material per reach, animated only by shader uniforms.
+## The prepared levels, meshes and clear-water cache window stay untouched.
+const RIVER_FLOW_MAX_PLACEMENTS: int = 3
+const RIVER_FLOW_DOWNSTREAM_SPEED: float = 0.62
+const RIVER_FLOW_DOWNSTREAM_SPEED_STEP: float = 0.07
+const RIVER_FLOW_DOWNSTREAM_STRENGTH: float = 0.16
+const RIVER_FLOW_DOWNSTREAM_STRENGTH_STEP: float = 0.02
+const RIVER_FLOW_UPSTREAM_SPEED: float = 0.10
+const RIVER_FLOW_UPSTREAM_STRENGTH: float = 0.025
+const RIVER_FLOW_DOWNSTREAM_SCALE: float = 1.1
+const RIVER_FLOW_UPSTREAM_SCALE: float = 0.55
+const RIVER_FLOW_FOAM_COLOR := Color("e6f2ee")
 
 var variant: StringName = &"gentle"
 var _config: Dictionary = {}
@@ -30,6 +43,8 @@ var _heights := PackedFloat32Array()
 var _terrain_mesh_cache: ArrayMesh
 var _skirt_mesh_cache: ArrayMesh
 var _water_mesh_cache: Dictionary = {}
+var _water_flow_materials: Dictionary = {}
+var _river_flow_progress: float = 0.0
 
 
 func _init() -> void:
@@ -248,13 +263,68 @@ func water_mesh_reach(level: float, upstream: bool, clear_xz: Vector2 = Vector2.
 	return _water_mesh_for(level, reach, clear_xz, clear_radius)
 
 
+## The cached flow material for one reach. Both instances are created once from
+## the flow shader and then only receive uniform values, so requesting a mesh or
+## changing the flow never creates another material.
+func water_flow_material(upstream: bool) -> ShaderMaterial:
+	var key := "upstream" if upstream else "downstream"
+	var material: ShaderMaterial = _water_flow_materials.get(key)
+	if material == null:
+		material = ShaderMaterial.new()
+		material.shader = WATER_FLOW_SHADER
+		material.set_shader_parameter("flow_scale", RIVER_FLOW_UPSTREAM_SCALE if upstream else RIVER_FLOW_DOWNSTREAM_SCALE)
+		material.set_shader_parameter("foam_color", RIVER_FLOW_FOAM_COLOR)
+		material.set_shader_parameter("flow_speed", river_flow_speed(upstream))
+		material.set_shader_parameter("flow_strength", river_flow_strength(upstream))
+		_water_flow_materials[key] = material
+	return material
+
+
+## Applies the flow presentation for the committed dam count. This is
+## idempotent, clamps out-of-range counts and never rebuilds a mesh.
+func set_river_flow(placed_count: int) -> void:
+	var count := clampi(placed_count, 0, RIVER_FLOW_MAX_PLACEMENTS)
+	set_river_flow_progress(float(count) / float(RIVER_FLOW_MAX_PLACEMENTS))
+
+
+## Applies normalized presented progress to the existing three-step flow curve.
+## Mixed recipes can respond to each delivery without widening the authored range.
+func set_river_flow_progress(progress: float) -> void:
+	var clamped_progress := clampf(progress, 0.0, 1.0)
+	if is_equal_approx(clamped_progress, _river_flow_progress):
+		return
+	_river_flow_progress = clamped_progress
+	for upstream: bool in [true, false]:
+		var material := water_flow_material(upstream)
+		material.set_shader_parameter("flow_speed", river_flow_speed(upstream))
+		material.set_shader_parameter("flow_strength", river_flow_strength(upstream))
+
+
+## Downstream speed falls as the dam grows, so each placement visibly calms the
+## river. The upstream lake keeps one almost still value for every count.
+func river_flow_speed(upstream: bool) -> float:
+	if upstream:
+		return RIVER_FLOW_UPSTREAM_SPEED
+	return RIVER_FLOW_DOWNSTREAM_SPEED - RIVER_FLOW_DOWNSTREAM_SPEED_STEP * _river_flow_progress * float(RIVER_FLOW_MAX_PLACEMENTS)
+
+
+func river_flow_strength(upstream: bool) -> float:
+	if upstream:
+		return RIVER_FLOW_UPSTREAM_STRENGTH
+	return RIVER_FLOW_DOWNSTREAM_STRENGTH - RIVER_FLOW_DOWNSTREAM_STRENGTH_STEP * _river_flow_progress * float(RIVER_FLOW_MAX_PLACEMENTS)
+
+
 func _water_mesh_for(level: float, reach: int, clear_xz: Vector2, clear_radius: float) -> ArrayMesh:
 	var cache_key := "%s|%d|%s|%.2f" % [str(level), reach, str(clear_xz), clear_radius]
 	if _water_mesh_cache.has(cache_key):
 		return _water_mesh_cache[cache_key]
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	surface.set_material(_water_material())
+	# The combined WATER_REACH_ALL mesh is a preview convenience only: it maps to
+	# the downstream material, so a preview animates the lake at river speed. The
+	# playable scene uses water_mesh_reach, which keeps the upstream lake and the
+	# downstream stream on their own cached materials.
+	surface.set_material(water_flow_material(reach == WATER_REACH_UPSTREAM))
 	var x_start := -19.0
 	var z_start := -18.5
 	var columns := int(round(38.0 / WATER_GRID_STEP))
@@ -511,17 +581,6 @@ func _terrain_material() -> StandardMaterial3D:
 	material.vertex_color_use_as_albedo = true
 	material.vertex_color_is_srgb = false
 	material.roughness = 0.92
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return material
-
-
-func _water_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.vertex_color_is_srgb = false
-	material.albedo_color = Color.WHITE
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return material
 

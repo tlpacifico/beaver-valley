@@ -18,6 +18,24 @@ const ZONE_RADII: Dictionary = {
 	&"lodge": 1.7,
 	&"food_bank": 1.1,
 }
+## N2 authored grove in the east half of the bank. This single source feeds the
+## visible boulders/trunks, their collision cylinders and the route exclusion.
+## The compact group blocks the straight line from the clearing to the woodland
+## opening, so the beaver walks around its north or south side, while every
+## direct task route stays short and every dropped branch stays reachable.
+## All entries are authored, dry at the full lake level, inside the playable
+## rectangle, on ground below 15 degrees and at least 1.0 m clear of task points.
+const GROVE_OBSTACLES: Array[Dictionary] = [
+	{"id": &"grove_boulder_01", "xz": Vector2(3.90, 0.30), "radius": 0.40, "kind": &"boulder"},
+	{"id": &"grove_trunk_01", "xz": Vector2(4.08, -0.16), "radius": 0.32, "kind": &"trunk"},
+	{"id": &"grove_boulder_02", "xz": Vector2(3.86, -0.64), "radius": 0.36, "kind": &"boulder"},
+	{"id": &"grove_trunk_02", "xz": Vector2(4.10, 0.60), "radius": 0.30, "kind": &"trunk"},
+	{"id": &"grove_boulder_03", "xz": Vector2(4.08, -1.08), "radius": 0.30, "kind": &"boulder"},
+]
+const GROVE_KINDS: Array[StringName] = [&"boulder", &"trunk"]
+## Small open pocket east of the grove that closes the optional loop. The two
+## walkable routes around the group meet here; it carries scenery only.
+const WOODLAND_OPENING_XZ := Vector2(5.40, -0.60)
 const CAMERA_ELEVATION_DEGREES: float = 36.97
 const FIT_SAMPLE_STEP: float = 0.25
 const LODGE_FLOOR_SIZE := Vector3(1.4, 0.12, 0.7)
@@ -29,6 +47,28 @@ const LODGE_SITE_XZ := Vector2(-5.5, -4.8)
 const FOOD_CACHE_OFFSET := Vector2(1.9, 0.8)
 const FOOD_CACHE_APPROACH_XZ := Vector2(-1.25, -3.65)
 const DAM_CREST_ABOVE_FULL: float = 0.34
+## Mixed-material trees occupy a small east-bank extension beyond the old N2
+## grove. Each tree has one work point and one fall landing, all on the dry,
+## gently sloped bank. The authored log positions stay distinct and do not block
+## the actor's routes. The old single-tree coordinates remain below for legacy
+## saves and fixtures.
+const TREE_SOURCES: Array[Dictionary] = [
+	{"tree_id": "tree_01", "log_id": "log_01", "tree_xz": Vector2(0.5, 0.7), "work_xz": Vector2(0.5, -0.05), "landing_xz": Vector2(0.5, 2.75), "fall_direction": Vector3(0.0, 0.0, 1.0)},
+	{"tree_id": "tree_02", "log_id": "log_02", "tree_xz": Vector2(2.0, 0.7), "work_xz": Vector2(2.0, -0.05), "landing_xz": Vector2(2.0, 2.75), "fall_direction": Vector3(0.0, 0.0, 1.0)},
+	{"tree_id": "tree_03", "log_id": "log_03", "tree_xz": Vector2(5.5, 0.7), "work_xz": Vector2(5.5, -0.05), "landing_xz": Vector2(5.5, 2.75), "fall_direction": Vector3(0.0, 0.0, 1.0)},
+	{"tree_id": "tree_04", "log_id": "log_04", "tree_xz": Vector2(7.0, 0.7), "work_xz": Vector2(7.0, -0.05), "landing_xz": Vector2(7.0, 2.75), "fall_direction": Vector3(0.0, 0.0, 1.0)},
+	{"tree_id": "tree_05", "log_id": "log_05", "tree_xz": Vector2(8.5, 0.7), "work_xz": Vector2(8.5, -0.05), "landing_xz": Vector2(8.5, 2.75), "fall_direction": Vector3(0.0, 0.0, 1.0)},
+]
+const MIXED_BRANCH_XZ: Array[Vector2] = [
+	Vector2(0.5, 4.55), Vector2(2.0, 4.55), Vector2(3.5, 4.55), Vector2(5.0, 4.55), Vector2(6.5, 4.55),
+]
+const MIXED_STONE_XZ: Array[Vector2] = [
+	Vector2(0.2, -3.2), Vector2(2.0, -3.2), Vector2(3.8, -3.2), Vector2(5.6, -3.2), Vector2(7.4, -3.2),
+]
+## E2's original tree remains a separate source for legacy saves.
+const TREE_XZ := Vector2(4.5, 2.2)
+const TREE_WORK_XZ := Vector2(5.2, 2.2)
+const TREE_LANDING_XZ := Vector2(4.5, 4.25)
 
 var _terrain: ValleyTerrain
 var _anchors: Dictionary = {}
@@ -54,6 +94,77 @@ func anchor_xz(id: StringName) -> Vector2:
 
 func zone_radius(id: StringName) -> float:
 	return float(ZONE_RADII.get(id, 1.0))
+
+
+## Authored grove entries lifted onto the terrain surface. Visual scenery,
+## collision cylinders and navigation exclusion all read this list, so the three
+## representations cannot drift apart. Only boulder and trunk groups are allowed.
+func grove_obstacles() -> Array[Dictionary]:
+	var obstacles: Array[Dictionary] = []
+	for entry in GROVE_OBSTACLES:
+		var kind: StringName = entry["kind"]
+		if not GROVE_KINDS.has(kind):
+			push_error("Unsupported grove obstacle kind: %s." % String(kind))
+			continue
+		var xz: Vector2 = entry["xz"]
+		obstacles.append({
+			"id": entry["id"],
+			"xz": xz,
+			"y": _terrain.height_at(xz) if _terrain != null else 0.0,
+			"radius": float(entry["radius"]),
+			"kind": kind,
+		})
+	return obstacles
+
+
+## Ground point of the small woodland opening that closes the optional loop.
+func woodland_opening_xz() -> Vector2:
+	return WOODLAND_OPENING_XZ
+
+
+## E2 interactive tree: standing trunk, gnawing work spot and branch landing.
+func tree_xz() -> Vector2:
+	return TREE_XZ
+
+
+func tree_work_xz() -> Vector2:
+	return TREE_WORK_XZ
+
+
+func tree_landing_xz() -> Vector2:
+	return TREE_LANDING_XZ
+
+
+## Stable mixed-recipe tree records. Return deep copies so callers cannot mutate
+## the authored source table while configuring runtime trees.
+func tree_sources() -> Array[Dictionary]:
+	var records: Array[Dictionary] = []
+	for record in TREE_SOURCES:
+		records.append(record.duplicate(true))
+	return records
+
+
+func tree_record(tree_id: String) -> Dictionary:
+	for record in TREE_SOURCES:
+		if record.get("tree_id", "") == tree_id:
+			return record.duplicate(true)
+	return {}
+
+
+func material_source_xz(material_type: String, index: int) -> Vector2:
+	if material_type == "branch" and index >= 0 and index < MIXED_BRANCH_XZ.size():
+		return MIXED_BRANCH_XZ[index]
+	if material_type == "stone" and index >= 0 and index < MIXED_STONE_XZ.size():
+		return MIXED_STONE_XZ[index]
+	return Vector2.ZERO
+
+
+## Grounded world position for one of the tree points, on the same terrain the
+## visible mesh and the collision body use.
+func tree_point(xz: Vector2) -> Vector3:
+	if _terrain == null:
+		return Vector3(xz.x, 0.0, xz.y)
+	return Vector3(xz.x, _terrain.height_at(xz), xz.y)
 
 
 ## Visual lodge centre in the lake. The floor sits below the water surface and

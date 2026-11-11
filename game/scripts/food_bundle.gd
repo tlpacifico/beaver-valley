@@ -6,7 +6,9 @@ extends Node3D
 enum Kind { SUITABLE, THIN }
 enum State { FREE, RESERVED, CARRIED, PLACED }
 
-const HIT_LAYER: int = 64
+## Shared collision-layer contract: the interactive tree owns 64, so a food
+## bundle uses the next free bit (512) and can never be selected as the tree.
+const HIT_LAYER: int = 512
 
 var kind: Kind = Kind.SUITABLE
 var state: State = State.FREE

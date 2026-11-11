@@ -48,6 +48,8 @@ func _wait_frames(condition: Callable, max_frames: int = 240) -> bool:
 
 func _spawn_world(directory: String) -> Node:
 	root.size = Vector2i(960, 600)
+	if not FileAccess.file_exists(directory.path_join(DamSave.SAVE_FILE)):
+		_expect(DamSave.save_state(DamSave.empty_state(DamSave.LEGACY_RECIPE_ID), directory), "Could not seed the world with an explicit legacy recipe.")
 	var world: Node = load(SCENE_PATH).instantiate()
 	world.save_directory = directory
 	root.add_child(world)
@@ -82,6 +84,10 @@ func _feedback_text(world: Node) -> String:
 	return label.text if label != null else ""
 
 
+func _feedback_visible(world: Node) -> bool:
+	return _feedback(world) != null
+
+
 func _finish_panel_visible(world: Node) -> bool:
 	var panel := world.get("finish_panel") as Control
 	return panel != null and panel.visible
@@ -92,20 +98,31 @@ func _placed_ids(directory: String) -> Array:
 
 
 func _two_branch_state() -> Dictionary:
-	var state := DamSave.empty_state()
+	var state := DamSave.empty_state(DamSave.LEGACY_RECIPE_ID)
 	state["placed_materials"] = ["branch_normal_01", "branch_normal_02"]
 	return state
 
 
+func _mixed_counter_text(branches_count: int, logs_count: int, stones_count: int) -> String:
+	return "Pedras: %d/5\nTroncos: %d/5\nRamos: %d/5" % [stones_count, logs_count, branches_count]
+
+
 func _find_free_suitable(world: Node) -> Node:
 	for candidate in world.get("branches"):
-		if int(candidate.get("state")) == CollectibleBranch.State.FREE and bool(world.call("_is_suitable_material", candidate)):
+		if bool(candidate.get("visible")) and int(candidate.get("state")) == CollectibleBranch.State.FREE and bool(world.call("_is_suitable_material", candidate)):
 			return candidate
 	return null
 
 
 func _collect_and_request_place(world: Node) -> Node:
 	var branch := _find_free_suitable(world)
+	if branch == null and not bool(world.get("tree_cut")):
+		# E2: once only the tree branch is left, the standing tree supplies it.
+		if not bool(world.request_gnaw_tree()):
+			return null
+		if not await _wait(func() -> bool: return bool(world.get("tree_cut")), 20.0):
+			return null
+		branch = _find_free_suitable(world)
 	if branch == null:
 		return null
 	if not bool(world.request_collect(branch)):
@@ -134,6 +151,176 @@ func _placed_branches(world: Node) -> Array:
 	return result
 
 
+func _deliver_mixed_material(world: Node, material_id: String, counts: Dictionary, expected_total: int) -> Node:
+	var material: Node = world.get("objects_by_id").get(material_id)
+	_expect(material != null, "The mixed delivery could not find %s in the object registry." % material_id)
+	if material == null:
+		return null
+	if material_id.begins_with("log_"):
+		var tree_id := "tree_" + material_id.get_slice("_", 1)
+		var tree: Node = world.get("trees_by_id").get(tree_id)
+		_expect(tree != null, "The log %s has no source tree %s." % [material_id, tree_id])
+		if tree != null and not bool(tree.call("is_cut")):
+			if not bool(world.request_gnaw_tree(tree_id)):
+				_expect(false, "The source tree %s could not be selected for %s." % [tree_id, material_id])
+				return null
+			world.actor.follow_path(PackedVector3Array())
+			if not await _wait(func() -> bool: return bool(material.visible), 20.0):
+				_expect(false, "The source tree %s did not finish falling for %s." % [tree_id, material_id])
+				return null
+	world.actor.position = world.layout.anchor(&"spawn") + Vector3.UP * 0.05
+	world.actor.follow_path(PackedVector3Array())
+	var before_collection := _mixed_counter_text(counts.branch, counts.log, counts.stone)
+	if not bool(world.request_collect(material)):
+		_expect(false, "The mixed delivery could not collect %s (visible=%s state=%d cut_ids=%s stage=%s status=%s)." % [material_id, str(material.visible), int(material.get("state")), str(world.get("_cut_tree_ids")), world.call("_current_stage"), world.status.text])
+		return null
+	world.actor.follow_path(PackedVector3Array())
+	if not await _wait(func() -> bool: return world.get("carried_branch") == material):
+		_expect(false, "The mixed delivery did not carry %s." % material_id)
+		return null
+	_expect(world.progress_label.text == before_collection, "Collecting %s changed the delivered-material counters." % material_id)
+	if not bool(world.request_place()):
+		_expect(false, "The mixed delivery could not route %s to the dam." % material_id)
+		return null
+	world.actor.follow_path(PackedVector3Array())
+	if not await _wait(func() -> bool: return int(world.get("placed_count")) == expected_total):
+		_expect(false, "The delivery of %s did not commit as placement %d." % [material_id, expected_total])
+		return null
+	counts[material.material_type] += 1
+	_expect(world.progress_label.text == _mixed_counter_text(counts.branch, counts.log, counts.stone), "Delivering %s did not update only its material counter." % material_id)
+	if expected_total < 15:
+		_expect(not bool(world.home_stage.get("is_active")), "The home activated before all 15 mixed placements were presented.")
+	else:
+		var already_placed: Node = null
+		for candidate_id: String in world.get("objects_by_id").keys():
+			var candidate: Node = world.get("objects_by_id")[candidate_id]
+			if candidate != material and int(candidate.get("state")) == CollectibleBranch.State.PLACED:
+				already_placed = candidate
+				break
+		_expect(already_placed != null, "The final-flight repeated-tap check found no other delivered object.")
+		if already_placed != null:
+			for _tap in range(3):
+				_expect(not bool(world.request_collect(already_placed)), "A repeated tap collected another material during the final placement flight.")
+			_expect(not bool(world.request_place()), "A repeated place tap started another placement during the final flight.")
+			_expect(world.get("pending_branch") == null and world.get("carried_branch") == null, "A final-flight repeated tap left another material pending or carried.")
+		_expect(not bool(world.home_stage.get("is_active")), "The home activated before the fifteenth placement arrived.")
+		_expect(_feedback_text(world) != COMPLETION_TEXT, "The final mixed delivery celebrated before its visual arrival.")
+	if not await _wait(func() -> bool: return int(world.get("_presented_dam_count")) == expected_total, 8.0):
+		_expect(false, "The delivery of %s did not present placement %d." % [material_id, expected_total])
+		return null
+	return material
+
+
+func _complete_mixed_home_food(world: Node, directory: String) -> void:
+	var home: Node = world.get("home_stage")
+	var parts: Array = home.get("parts")
+	for slot_index in range(2):
+		var part: Node = parts[slot_index]
+		_expect(bool(home.call("request_collect", part)), "The completed mixed dam did not allow collection of home part %d." % slot_index)
+		world.actor.follow_path(PackedVector3Array())
+		_expect(await _wait(func() -> bool: return home.get("carried_part") == part), "The mixed home part %d was not carried." % slot_index)
+		_expect(bool(home.call("request_place", slot_index)), "The mixed home part %d could not be placed." % slot_index)
+		world.actor.follow_path(PackedVector3Array())
+		_expect(await _wait(func() -> bool: return int(home.get("placed_slot_count")) == slot_index + 1), "The mixed home part %d did not persist." % slot_index)
+	_expect(bool(home.call("is_complete")) and bool(world.get("food_stage").get("is_active")), "Completing the mixed home did not open the food stage.")
+	var food: Node = world.get("food_stage")
+	for index in range(3):
+		var bundle: Node = null
+		for candidate in food.get("bundles"):
+			if int(candidate.get("state")) <= 1 and bool(food.call("is_bundle_suitable", candidate)):
+				bundle = candidate
+				break
+		_expect(bundle != null, "The mixed food stage had no suitable bundle %d." % index)
+		if bundle == null:
+			return
+		_expect(bool(food.call("request_collect", bundle)), "The mixed food bundle %d could not be collected." % index)
+		world.actor.follow_path(PackedVector3Array())
+		_expect(await _wait(func() -> bool: return food.get("carried_bundle") == bundle), "The mixed food bundle %d was not carried." % index)
+		_expect(bool(food.call("request_place")), "The mixed food bundle %d could not be stored." % index)
+		world.actor.follow_path(PackedVector3Array())
+		_expect(await _wait(func() -> bool: return int(food.get("placed_count")) == index + 1), "The mixed food bundle %d did not persist." % index)
+	_expect(await _wait(func() -> bool: return bool(world.get("winter_active")), 6.0), "The mixed chapter did not reach winter after food was stored.")
+	_expect(str(world.get("finish_choice")).is_empty(), "The mixed dam required its optional finish choice before home, food or winter.")
+	var saved_state: Dictionary = DamSave.load_state(directory)["state"]
+	_expect(saved_state["home_slots"].all(func(part_id: String) -> bool: return not part_id.is_empty()) and saved_state["food_placements"].size() == 3, "The mixed chapter did not save its home and food after dam completion.")
+
+
+func _check_mixed_delivery_order(order_name: String, sequence: Array[String], replay_after: bool = false) -> Dictionary:
+	var directory := TEST_ROOT + "mixed_" + order_name + "/"
+	_expect(DamSave.clear_save(directory), "Could not clear the %s mixed-delivery save." % order_name)
+	_expect(DamSave.save_state(DamSave.new_adventure_state(), directory), "Could not seed the %s mixed-delivery save." % order_name)
+	var world: Node = await _spawn_world(directory)
+	var positions_by_id: Dictionary = {}
+	var counts := {"branch": 0, "log": 0, "stone": 0}
+	var previous_water := float(world.get("water_level"))
+	_expect(world.progress_label.text == _mixed_counter_text(0, 0, 0), "The mixed HUD did not start with the three exact zero counters: %s" % world.progress_label.text)
+	_expect(not bool(world.home_stage.get("is_active")), "A fresh mixed adventure activated the home stage.")
+	for index in range(sequence.size()):
+		var material := await _deliver_mixed_material(world, sequence[index], counts, index + 1)
+		if material == null:
+			break
+		var material_type: String = material.get("material_type")
+		var type_index: int = counts[material_type] - 1
+		var expected_slot := type_index if material_type == "branch" else (5 + type_index if material_type == "log" else 10 + type_index)
+		_expect(int(material.get("placed_slot")) == expected_slot, "%s used delivery-order slot %d instead of stable slot %d." % [sequence[index], int(material.get("placed_slot")), expected_slot])
+		_expect(bool(material.visible), "The delivered %s silhouette is not visible." % sequence[index])
+		_expect(float(material.global_position.y) >= float(world.terrain.full_water_level()) - 0.01, "The delivered %s is below the prepared maximum water surface." % sequence[index])
+		positions_by_id[sequence[index]] = material.global_position
+		var level := float(world.get("water_level"))
+		_expect(level > previous_water, "Mixed delivery %d did not advance the prepared water presentation." % (index + 1))
+		_expect(level <= float(world.terrain.full_water_level()) + 0.001, "Mixed delivery %d exceeded the prepared maximum water level." % (index + 1))
+		previous_water = level
+		var saved_state: Dictionary = DamSave.load_state(directory)["state"]
+		_expect(saved_state["placements"].size() == index + 1, "Mixed delivery %d did not persist exactly one additional placement." % (index + 1))
+		if index == sequence.size() - 1:
+			_expect(bool(saved_state["stage_completed"]), "The fifteenth mixed placement was not saved as the single completion transition.")
+		var saved_record: Dictionary = {}
+		for candidate_record: Dictionary in saved_state["placements"]:
+			if candidate_record.get("material_id", "") == sequence[index]:
+				saved_record = candidate_record
+				break
+		var expected_zone := "dam_fill" if material_type == "branch" else ("dam_wall" if material_type == "log" else "dam_base")
+		_expect(not saved_record.is_empty() and int(saved_record.get("slot_index", -1)) == expected_slot and String(saved_record.get("zone", "")) == expected_zone, "The save did not preserve %s at its stable slot and zone." % sequence[index])
+		if index == sequence.size() - 2:
+			_expect(not bool(world.home_stage.get("is_active")), "The fourteenth mixed placement activated the home stage.")
+		if index == sequence.size() - 1:
+			var pulses_before := (world.visual_environment.get("_dam_foam_pulses") as Array).size()
+			world.call("_on_dam_placement_visual_finished", int(material.get("placed_slot")), int(world.get("_presentation_generation")))
+			await process_frame
+			_expect((world.visual_environment.get("_dam_foam_pulses") as Array).size() == pulses_before, "A repeated final-flight callback replayed placement effects.")
+	if positions_by_id.size() != sequence.size():
+		await _free_world(world)
+		_expect(DamSave.clear_save(directory), "Could not clean the incomplete %s mixed-delivery save." % order_name)
+		return {}
+	_expect(counts.branch == 5 and counts.log == 5 and counts.stone == 5, "The %s order did not finish with 5/5/5 delivered counts." % order_name)
+	_expect(bool(world._dam_progress.is_complete()) and int(world._dam_progress.count_for("branch")) == 5 and int(world._dam_progress.count_for("log")) == 5 and int(world._dam_progress.count_for("stone")) == 5, "The mixed progress model did not complete at exactly 5/5/5.")
+	_expect(bool(world.home_stage.get("is_active")), "The home did not activate after all 15 mixed placements arrived.")
+	_expect(not bool(world.food_stage.get("is_active")) and not bool(world.get("winter_active")), "Food or winter activated before the home was built.")
+	_expect(_feedback_text(world) == COMPLETION_TEXT, "The fifteenth mixed arrival did not show the dam completion exactly once.")
+	_expect(str(world.sfx.active_event) == "complete", "The fifteenth mixed arrival did not present the completion sound.")
+	_expect(float(world.get("water_level")) <= float(world.terrain.full_water_level()) + 0.001, "The completed mixed dam exceeded the prepared water maximum.")
+	var final_pulses := (world.visual_environment.get("_dam_foam_pulses") as Array).size()
+	world.call("_on_dam_placement_visual_finished", int(sequence.size() - 1), int(world.get("_presentation_generation")))
+	await process_frame
+	_expect((world.visual_environment.get("_dam_foam_pulses") as Array).size() == final_pulses, "The completed dam emitted a second placement response.")
+	if replay_after:
+		await _complete_mixed_home_food(world, directory)
+		await _free_world(world)
+		world = await _spawn_world(directory)
+		_expect(int(world.get("placed_count")) == 15 and int(world.get("_presented_dam_count")) == 15, "Replaying the mixed save did not restore all 15 placements silently.")
+		_expect(not _feedback_visible(world) and str(world.sfx.active_event).is_empty() and str(world.voice.active_event).is_empty(), "Replaying the completed mixed save re-emitted placement/completion effects.")
+		_expect((world.visual_environment.get("_dam_foam_pulses") as Array).is_empty(), "Replaying the completed mixed save spawned placement pulses.")
+		_expect(bool(world.get("winter_active")) and bool(world.home_stage.call("is_complete")) and bool(world.food_stage.call("is_complete")), "Replaying mixed dam, home and food progress did not restore winter silently.")
+		for material_id: String in positions_by_id:
+			var restored: Node = world.get("objects_by_id")[material_id]
+			_expect(restored.global_position.distance_to(positions_by_id[material_id]) <= 0.01, "Replaying the mixed save moved %s from its stable slot." % material_id)
+			_expect(bool(restored.visible) and int(restored.get("state")) == CollectibleBranch.State.PLACED, "Replaying the mixed save hid or freed placed material %s." % material_id)
+	var result := positions_by_id.duplicate(true)
+	await _free_world(world)
+	_expect(DamSave.clear_save(directory), "Could not clean the %s mixed-delivery save." % order_name)
+	return result
+
+
 func _record_signal(slot_index: int, events: Array) -> void:
 	events.append(slot_index)
 
@@ -154,11 +341,25 @@ func _run() -> void:
 	await _check_interruption()
 	await _check_midflight_save_and_disposal()
 	await _check_final_placement()
+	var stones_first := await _check_mixed_delivery_order("stones_first", ["stone_01", "stone_02", "stone_03", "stone_04", "stone_05", "log_01", "log_02", "log_03", "log_04", "log_05", "branch_01", "branch_02", "branch_03", "branch_04", "branch_05"])
+	if stones_first.is_empty():
+		quit(1)
+		return
+	var logs_first := await _check_mixed_delivery_order("logs_first", ["log_01", "log_02", "log_03", "log_04", "log_05", "branch_01", "branch_02", "branch_03", "branch_04", "branch_05", "stone_01", "stone_02", "stone_03", "stone_04", "stone_05"])
+	if logs_first.is_empty():
+		quit(1)
+		return
+	var interleaved := await _check_mixed_delivery_order("interleaved", ["branch_01", "log_01", "stone_01", "branch_02", "log_02", "stone_02", "branch_03", "log_03", "stone_03", "branch_04", "log_04", "stone_04", "branch_05", "log_05", "stone_05"], true)
+	for material_id: String in interleaved:
+		if stones_first.has(material_id):
+			_expect(interleaved[material_id].distance_to(stones_first[material_id]) <= 0.01, "The stable slot for %s moved between interleaved and stones-first deliveries." % material_id)
+		if logs_first.has(material_id):
+			_expect(interleaved[material_id].distance_to(logs_first[material_id]) <= 0.01, "The stable slot for %s moved between interleaved and logs-first deliveries." % material_id)
 	await _check_save_failure()
 	var approach_summary: String = await _check_dam_approach()
 	_expect(DamSave.clear_save(TEST_ROOT), "Could not clean up the construction-feedback save directories.")
 	if failures == 0:
-		print("CASTOR_CONSTRUCTION_FEEDBACK_OK signal_once commit_presentation repeated_taps overlap_reconcile interruption midflight_save disposal final_placement save_failure %s" % approach_summary)
+		print("CASTOR_CONSTRUCTION_FEEDBACK_OK signal_once commit_presentation repeated_taps overlap_reconcile interruption midflight_save disposal final_placement mixed_orders mixed_counters completion_once replay_silent save_failure %s" % approach_summary)
 	quit(0 if failures == 0 else 1)
 
 
@@ -445,7 +646,7 @@ func _check_dam_approach() -> String:
 	var layout = LayoutScript.new()
 	layout.configure(terrain)
 	var navigation = NavigationScript.new()
-	navigation.configure(terrain)
+	navigation.configure(terrain, layout)
 	var spawn: Vector3 = layout.anchor(&"spawn")
 	var lodge: Vector3 = layout.anchor(&"lodge")
 	var clearing: Vector3 = layout.anchor(&"branch_clearing")

@@ -23,9 +23,9 @@ func _run() -> void:
 	var layout = LayoutScript.new()
 	layout.configure(terrain)
 	var navigation = NavigationScript.new()
-	navigation.configure(terrain)
+	navigation.configure(terrain, layout)
 
-	_expect(navigation.get_cell_count() == 26 * 22, "Navigation grid must cover the 13 × 11 m bank at 0.5 m.")
+	_expect(navigation.get_cell_count() == 32 * 22, "Navigation grid must cover the expanded 16 × 11 m bank at 0.5 m.")
 	_expect(navigation.get_solid_cell_count() > 0, "The lake and steep banks must block some cells.")
 	_expect(navigation.get_solid_cell_count() < navigation.get_cell_count(), "The whole bank is solid.")
 

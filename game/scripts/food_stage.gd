@@ -17,7 +17,9 @@ const DEFAULT_TARGET_POSITION := Vector3(-0.2, 0.06, -4.6)
 const DEFAULT_BUNDLE_ORIGINS: Array[Vector3] = [Vector3(-5.2, 0.18, 0.6), Vector3(-3.8, 0.18, 0.6), Vector3(-2.4, 0.18, 0.6), Vector3(2.2, 0.18, 0.6), Vector3(3.6, 0.18, 0.6)]
 const BUNDLE_KINDS: Array[FoodBundle.Kind] = [FoodBundle.Kind.SUITABLE, FoodBundle.Kind.THIN, FoodBundle.Kind.SUITABLE, FoodBundle.Kind.SUITABLE, FoodBundle.Kind.THIN]
 const BUNDLE_IDS: Array[String] = ["food_bundle_01", "food_bundle_02", "food_bundle_03", "food_bundle_04", "food_bundle_05"]
-const BUNDLE_LAYER: int = 64
+## Layer 64 belongs to the E2 interactive tree. Food bundles take 512 so the
+## tree query and the bundle query can never resolve the same node.
+const BUNDLE_LAYER: int = 512
 const TARGET_LAYER: int = 128
 const REQUIRED_COUNT: int = 3
 

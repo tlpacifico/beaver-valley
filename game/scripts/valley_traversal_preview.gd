@@ -31,6 +31,7 @@ func _ready() -> void:
 	layout = ValleyLayout.new()
 	layout.configure(terrain)
 	navigation = NavigationScript.new()
+	# This preview draws no grove visuals, so it routes on the terrain alone.
 	navigation.configure(terrain)
 	_build_environment()
 	_build_terrain()

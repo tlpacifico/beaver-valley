@@ -147,11 +147,14 @@ func _completed_dam_state(finish: String) -> Dictionary:
 
 
 func _complete_third_branch(world: Node) -> bool:
-	var branch: Node = null
-	for candidate in world.branches:
-		if int(candidate.get("state")) == 0 and bool(world.call("_is_suitable_material", candidate)):
-			branch = candidate
-			break
+	var branch := _first_available_suitable(world)
+	if branch == null and not bool(world.get("tree_cut")):
+		# E2: the last suitable branch is supplied by the standing tree.
+		if not bool(world.request_gnaw_tree()):
+			return false
+		if not await _wait(func() -> bool: return bool(world.get("tree_cut")), 20.0):
+			return false
+		branch = _first_available_suitable(world)
 	if branch == null:
 		return false
 	if not bool(world.request_collect(branch)):
@@ -165,6 +168,13 @@ func _complete_third_branch(world: Node) -> bool:
 	# P2 presents the dam celebration after the 0.45 s material flight, so wait
 	# for the presentation instead of assuming the same frame as the commit.
 	return await _wait(func() -> bool: return _feedback_visible(world) and _feedback_text(world) == "A represa está pronta!", 5.0)
+
+
+func _first_available_suitable(world: Node) -> Node:
+	for candidate in world.branches:
+		if bool(candidate.visible) and int(candidate.get("state")) == 0 and bool(world.call("_is_suitable_material", candidate)):
+			return candidate
+	return null
 
 
 func _first_suitable_bundle(food: Node) -> Node:
@@ -197,8 +207,10 @@ func _check_fresh_chapter() -> void:
 	var directory := TEST_ROOT + "fresh/"
 	_expect(DamSave.clear_save(directory), "Could not clear the fresh save directory.")
 	var world: Node = await _spawn_world(directory)
-	_expect(_objective(world) == "Escolhe um ramo para a represa.", "A fresh chapter does not show only the current dam objective: %s" % _objective(world))
-	_expect(_progress(world) == "Ramos na represa: ○○○", "The fresh chapter does not show the dam progress region: %s" % _progress(world))
+	_expect(_objective(world) == "Escolhe um material para a represa.", "A fresh mixed chapter does not show only the current dam objective: %s" % _objective(world))
+	_expect(_progress(world) == "Pedras: 0/5\nTroncos: 0/5\nRamos: 0/5", "The fresh mixed chapter does not show all three exact delivery counters: %s" % _progress(world))
+	_expect(world.progress_label.get_global_rect().end.y <= 188.0, "The three-line dam counters extend into the play-area feedback region.")
+	_expect(world.dam_counter_icons.size() == 3 and world.dam_counter_icons.all(func(icon: ColorRect) -> bool: return icon.visible), "The three mixed counters do not have their visible material silhouettes.")
 	_expect(not _feedback_visible(world), "A fresh chapter shows a completion message.")
 	_expect(not _finish_panel_visible(world), "A fresh chapter shows the dam finish controls.")
 	_expect(_permanent_instructions(world) == 1, "A fresh chapter shows more than one permanent instruction.")
@@ -390,6 +402,9 @@ func _check_final_flight_blocked() -> void:
 			leftover = candidate
 	_expect(final_branch != null and leftover != null, "The final-flight check could not find its branches.")
 	if final_branch != null and leftover != null:
+		if not bool(world.get("tree_cut")):
+			_expect(bool(world.request_gnaw_tree()), "The final-flight check could not select the interactive tree.")
+			_expect(await _wait(func() -> bool: return bool(world.get("tree_cut")), 20.0), "The final-flight check did not finish the tree cut.")
 		_expect(bool(world.request_collect(final_branch)), "The final dam branch could not be selected.")
 		_expect(await _wait(func() -> bool: return world.get("carried_branch") == final_branch), "The final dam branch was not carried.")
 		_expect(bool(world.request_place()), "The final dam branch could not be routed.")
@@ -413,7 +428,7 @@ func _check_final_flight_blocked() -> void:
 
 func _find_free_suitable(world: Node) -> Node:
 	for candidate in world.branches:
-		if int(candidate.get("state")) == 0 and bool(world.call("_is_suitable_material", candidate)):
+		if bool(candidate.visible) and int(candidate.get("state")) == 0 and bool(world.call("_is_suitable_material", candidate)):
 			return candidate
 	return null
 

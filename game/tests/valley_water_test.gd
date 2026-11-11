@@ -24,7 +24,7 @@ func _run() -> void:
 	var layout = LayoutScript.new()
 	layout.configure(terrain)
 	var navigation = NavigationScript.new()
-	navigation.configure(terrain)
+	navigation.configure(terrain, layout)
 
 	var initial: float = terrain.initial_water_level()
 	var intermediate: float = terrain.intermediate_water_level()
